@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://finderight.com
+
+# Sitemaps
+Sitemap: https://finderight.com/sitemap.xml
