@@ -13,7 +13,7 @@ interface NewsItem {
 }
 
 export default async function StudyNewsList() {
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
 
     const res = await fetch(`${baseUrl}/api/study-news`, {
         cache: "no-store",

@@ -26,7 +26,7 @@ export default async function StudyNewsDetail({
     params: { slug: string };
 }) {
     const { slug } = params;
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
 
     const res = await fetch(`${baseUrl}/api/study-news?slug=${slug}`, {
         cache: "no-store",
