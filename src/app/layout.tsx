@@ -86,7 +86,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             }),
           }}
         />
+
+        {/* ✅ Google AdSense (Directly in head to avoid Next.js warnings) */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9348579900264611"
+          crossOrigin="anonymous"
+        ></script>
       </head>
+
       <body>
         <header>
           <Navbar />
@@ -100,7 +108,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Footer />
         </footer>
 
-        {/* Google Analytics */}
+        {/* ✅ Google Analytics (next/script is fine here) */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-SLZNW3SGL4"
           strategy="afterInteractive"
@@ -113,14 +121,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             gtag('config', 'G-SLZNW3SGL4');
           `}
         </Script>
-
-        {/* Google AdSense */}
-        <Script
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9348579900264611"
-          strategy="afterInteractive"
-          crossOrigin="anonymous"
-          async
-        />
       </body>
     </html>
   );
