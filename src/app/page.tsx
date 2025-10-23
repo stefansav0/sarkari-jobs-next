@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-// Import your LatestJobs component correctly
 import LatestJobs from "@/components/LatestJobs";
+import HomeBannerAd from "@/components/HomeBannerAd"; // Import the Ad component
 
 const homeCategories = [
   { name: "Result", path: "/result" },
@@ -50,6 +50,11 @@ const Home = () => {
         </p>
       </section>
 
+      {/* 🔹 Google AdSense Banner */}
+      <section className="mt-10">
+        <HomeBannerAd />
+      </section>
+
       {/* 🔹 Navigation Categories */}
       <nav
         aria-label="Home category navigation"
@@ -68,7 +73,6 @@ const Home = () => {
 
       {/* 🔹 Latest Jobs Component */}
       <section className="mt-12">
-        {/* Replace this with your actual LatestJobs component */}
         <LatestJobs />
       </section>
 
