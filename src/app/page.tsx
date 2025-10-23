@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import LatestJobs from "@/components/LatestJobs";
 import { useState } from "react";
+// Import your LatestJobs component correctly
+import LatestJobs from "@/components/LatestJobs";
 
 const homeCategories = [
   { name: "Result", path: "/result" },
@@ -13,13 +14,11 @@ const homeCategories = [
 ];
 
 const faqs = [
-
   {
     question: "What kind of jobs are listed on Finderight?",
     answer:
       "Finderight provides information on various government job opportunities across India, including central and state-level recruitments such as UPSC, SSC, Railway, Defence, Banking, Teaching, and PSU vacancies. Please note that Finderight is an independent platform and does not guarantee job offers.",
   },
-
   {
     question: "Is Finderight free to use?",
     answer:
@@ -28,11 +27,8 @@ const faqs = [
   {
     question: "How can I get job alerts?",
     answer:
-      "You can sign up for our free email newsletter to receive the latest Sarkari job notifications directly in your inbox. We respect your privacy—your data is securely handled and will never be shared with third parties without your consent",
+      "You can sign up for our free email newsletter to receive the latest Sarkari job notifications directly in your inbox. We respect your privacy—your data is securely handled and will never be shared with third parties without your consent.",
   },
-
-
-
 ];
 
 const Home = () => {
@@ -72,6 +68,7 @@ const Home = () => {
 
       {/* 🔹 Latest Jobs Component */}
       <section className="mt-12">
+        {/* Replace this with your actual LatestJobs component */}
         <LatestJobs />
       </section>
 
@@ -118,10 +115,10 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 🔹 Modern FAQ Section (Collapsible / Accordion) */}
+      {/* 🔹 FAQ Section */}
       <section className="mt-20">
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-10">
-          FAQ-Finderight
+          FAQ - Finderight
         </h2>
 
         <div className="max-w-4xl mx-auto space-y-4">
@@ -132,6 +129,7 @@ const Home = () => {
             >
               <button
                 onClick={() => toggleFAQ(index)}
+                aria-expanded={openIndex === index}
                 className="w-full flex justify-between items-center px-6 py-4 text-left focus:outline-none hover:bg-blue-50"
               >
                 <span className="font-semibold text-gray-900 text-lg">
