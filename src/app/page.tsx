@@ -48,8 +48,17 @@ interface TableSectionProps {
   directLink?: boolean; // for documents with direct URLs
 }
 
+// Define the shape of items returned by APIs
+interface ApiItem {
+  title?: string;
+  name?: string;
+  slug?: string;
+  link?: string;
+  [key: string]: unknown; // catch-all for extra fields
+}
+
 const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps) => {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ApiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,30 +69,28 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
       try {
         const res = await fetch(endpoint, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const result = await res.json();
+        const result = (await res.json()) as Record<string, unknown>;
 
-        const findFirstArray = (obj: any): any[] | null => {
-          if (Array.isArray(obj)) return obj;
-          if (typeof obj === "object" && obj !== null) {
-            for (const key in obj) {
-              if (Array.isArray(obj[key])) return obj[key];
-            }
+        const findFirstArray = (obj: Record<string, unknown>): ApiItem[] | null => {
+          for (const key in obj) {
+            if (Array.isArray(obj[key])) return obj[key] as ApiItem[];
           }
           return null;
         };
 
-        let parsedData: any[] = [];
-        if (Array.isArray(result)) parsedData = result;
-        else if (Array.isArray(result.data)) parsedData = result.data;
-        else if (Array.isArray(result.results)) parsedData = result.results;
+        let parsedData: ApiItem[] = [];
+        if (Array.isArray(result)) parsedData = result as ApiItem[];
+        else if (Array.isArray(result.data)) parsedData = result.data as ApiItem[];
+        else if (Array.isArray(result.results)) parsedData = result.results as ApiItem[];
         else {
           const arr = findFirstArray(result);
           if (arr) parsedData = arr;
         }
 
         setData(parsedData);
-      } catch (err: any) {
-        setError(err.message || "Error fetching data");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error fetching data";
+        setError(message);
         setData([]);
       } finally {
         setLoading(false);
@@ -129,7 +136,10 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
                 );
               } else {
                 const slug =
-                  item.slug || (item.title || item.name || `item-${i}`).toLowerCase().replace(/\s+/g, "-");
+                  item.slug || (item.title || item.name || `item-${i}`)
+                    .toString()
+                    .toLowerCase()
+                    .replace(/\s+/g, "-");
                 const linkPath = `${viewAllPath}/${slug}`;
                 return (
                   <li key={i}>
@@ -206,9 +216,7 @@ const Home = () => {
 
       {/* About Section */}
       <section className="mt-12 sm:mt-20 bg-gray-50 p-6 sm:p-8 rounded-xl shadow-sm text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
-          About Finderight
-        </h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">About Finderight</h2>
         <p className="text-sm sm:text-base md:text-lg text-gray-700 leading-relaxed max-w-3xl mx-auto">
           Finderight is your one-stop destination for all the latest government job updates, results, admit cards, and admission information in India. We aim to simplify your Sarkari job search by providing accurate, timely, and verified notifications — all in one place.
         </p>
