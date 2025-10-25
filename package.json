@@ -24,6 +24,7 @@
     "@tiptap/extension-underline": "^3.7.0",
     "@tiptap/react": "^3.7.0",
     "@tiptap/starter-kit": "^3.7.0",
+    "@vercel/speed-insights": "^1.2.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "isomorphic-dompurify": "^2.29.0",

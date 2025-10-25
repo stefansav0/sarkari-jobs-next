@@ -1,12 +1,12 @@
-// File: src/app/layout.tsx
-
 import "./globals.css";
 import type { ReactNode } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Script from "next/script";
 import { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
+// ✅ SEO metadata
 export const metadata: Metadata = {
   title: "Finderight - Latest Sarkari Jobs, Results, Admit Cards & Answer Keys",
   description:
@@ -56,20 +56,27 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        {/* Preconnect to third-party domains */}
+        {/* Canonical link for SEO */}
+        <link rel="canonical" href="https://finderight.com/" />
+
+        {/* Favicon and manifest */}
+        <link rel="icon" href="/Logo1.webp" type="image/webp" />
+        <link rel="manifest" href="/manifest.json" />
+
+        {/* Preconnect for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
 
-        {/* Canonical link for SEO */}
-        <link rel="canonical" href="https://finderight.com/" />
+        {/* ✅ Google AdSense */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9348579900264611"
+          crossOrigin="anonymous"
+        ></script>
 
-        {/* Favicon and Manifest */}
-        <link rel="icon" href="/Logo1.webp" type="image/webp" />
-        <link rel="manifest" href="/manifest.json" />
-
-        {/* Structured Data / Schema.org for SEO */}
+        {/* ✅ Structured Data (Schema.org) */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -86,29 +93,25 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             }),
           }}
         />
-
-        {/* ✅ Google AdSense (Directly in head to avoid Next.js warnings) */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9348579900264611"
-          crossOrigin="anonymous"
-        ></script>
       </head>
 
       <body>
+        {/* Navbar */}
         <header>
           <Navbar />
         </header>
 
+        {/* Main Content */}
         <main id="main-content" role="main">
           {children}
         </main>
 
+        {/* Footer */}
         <footer>
           <Footer />
         </footer>
 
-        {/* ✅ Google Analytics (next/script is fine here) */}
+        {/* ✅ Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-SLZNW3SGL4"
           strategy="afterInteractive"
@@ -121,6 +124,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             gtag('config', 'G-SLZNW3SGL4');
           `}
         </Script>
+
+        {/* ✅ Vercel Speed Insights */}
+        <SpeedInsights />
       </body>
     </html>
   );
