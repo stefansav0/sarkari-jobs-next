@@ -10,6 +10,7 @@ interface Job {
     title: string;
     department?: string;
     category?: string;
+    slug?: string; // optional slug field if backend provides it
 }
 
 // Gradient color classes (cycled)
@@ -68,21 +69,31 @@ const LatestJobs = () => {
             ) : jobListings.length ? (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {jobListings.slice(0, visibleCount).map((job, index) => (
-                            <Link
-                                key={job._id}
-                                href={`/jobs/id/${job._id}`}
-                                className={`block p-5 rounded-xl text-white shadow-md transition-transform hover:scale-[1.02] duration-200 ${colors[index % colors.length]}`}
-                            >
-                                <div className="flex items-center gap-2 text-lg font-semibold">
-                                    <Briefcase className="w-5 h-5" />
-                                    {job.title}
-                                </div>
-                                <p className="mt-1 text-sm font-light text-white/90">
-                                    {job.department || job.category || "General"}
-                                </p>
-                            </Link>
-                        ))}
+                        {jobListings.slice(0, visibleCount).map((job, index) => {
+                            // Generate a slug if not provided
+                            const jobSlug =
+                                job.slug ||
+                                job.title
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9]+/g, "-")
+                                    .replace(/(^-|-$)/g, "");
+
+                            return (
+                                <Link
+                                    key={job._id}
+                                    href={`/jobs/slug/${jobSlug}`}
+                                    className={`block p-5 rounded-xl text-white shadow-md transition-transform hover:scale-[1.02] duration-200 ${colors[index % colors.length]}`}
+                                >
+                                    <div className="flex items-center gap-2 text-lg font-semibold">
+                                        <Briefcase className="w-5 h-5" />
+                                        {job.title}
+                                    </div>
+                                    <p className="mt-1 text-sm font-light text-white/90">
+                                        {job.department || job.category || "General"}
+                                    </p>
+                                </Link>
+                            );
+                        })}
                     </div>
 
                     {visibleCount < jobListings.length && (
