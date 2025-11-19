@@ -11,7 +11,7 @@ import {
   Divider,
 } from "@mui/material";
 import axios from "axios";
-import TipTapEditor from "../../../components/TipTapEditor"; // Adjust path as per folder structure
+import TipTapEditor from "../../../components/TipTapEditor";
 
 const initialState = {
   title: "",
@@ -39,6 +39,7 @@ const AdminAddAdmission = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    // Handle nested fields like importantLinks.applyOnline
     if (name.includes(".")) {
       const [section, field] = name.split(".");
       setFormData((prev) => ({
@@ -60,13 +61,18 @@ const AdminAddAdmission = () => {
     e.preventDefault();
 
     try {
-      const res = await axios.post("api/admissions", formData);
+      console.log("🧾 Sending form data:", formData);
+
+      const res = await axios.post("/api/admissions", formData, {
+        headers: { "Content-Type": "application/json" },
+      });
+
       alert("✅ Admission added successfully!");
       setFormData(initialState);
-      console.log(res.data);
+      console.log("✅ Response:", res.data);
     } catch (err) {
-      console.error("❌ Failed to add admission:", err);
-      alert("❌ Failed to add admission");
+      console.error("❌ Failed to add admission:", err.response?.data || err);
+      alert(err.response?.data?.message || "❌ Failed to add admission");
     }
   };
 
@@ -86,15 +92,36 @@ const AdminAddAdmission = () => {
               { label: "Eligibility", name: "eligibility" },
               { label: "Age Limit", name: "ageLimit" },
               { label: "Course (e.g. MA, MSc)", name: "course" },
-              { label: "Exam Date", name: "examDate", placeholder: "e.g., February 17–25, 2025" },
-              { label: "Publish Date", name: "publishDate", placeholder: "e.g., 20/5/2025" },
-              { label: "Application Begin", name: "applicationBegin", placeholder: "e.g., 1/4/2025" },
-              { label: "Last Date to Apply", name: "lastDateApply", placeholder: "e.g., 30/4/2025" },
-              { label: "Admission Date", name: "admissionDate", placeholder: "e.g., 10/6/2025" },
+              {
+                label: "Exam Date",
+                name: "examDate",
+                placeholder: "e.g., February 17–25, 2025",
+              },
+              {
+                label: "Publish Date",
+                name: "publishDate",
+                placeholder: "e.g., 20/5/2025",
+              },
+              {
+                label: "Application Begin",
+                name: "applicationBegin",
+                placeholder: "e.g., 1/4/2025",
+              },
+              {
+                label: "Last Date to Apply",
+                name: "lastDateApply",
+                placeholder: "e.g., 30/4/2025",
+              },
+              {
+                label: "Admission Date",
+                name: "admissionDate",
+                placeholder: "e.g., 10/6/2025",
+              },
             ].map(({ label, name, placeholder }) => (
               <Grid item xs={12} sm={6} key={name}>
                 <TextField
                   fullWidth
+                  required={name === "title" || name === "conductedBy"}
                   autoComplete="off"
                   label={label}
                   name={name}
@@ -158,7 +185,12 @@ const AdminAddAdmission = () => {
 
             {/* Submit Button */}
             <Grid item xs={12}>
-              <Button type="submit" variant="contained" color="primary" fullWidth>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+              >
                 Submit Admission
               </Button>
             </Grid>

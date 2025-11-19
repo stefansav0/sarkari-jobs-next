@@ -17,15 +17,13 @@ export default function DocumentDetailPageClient() {
   const params = useParams();
   const router = useRouter();
 
-  // Defensive check for slug: could be string | string[] | undefined
   let slug: string | undefined;
   if (typeof params?.slug === "string") {
     slug = params.slug;
   } else if (Array.isArray(params?.slug)) {
-    slug = params.slug[0]; // just take first if array
+    slug = params.slug[0];
   }
 
-  // Hooks always at the top level
   const [document, setDocument] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,20 +38,11 @@ export default function DocumentDetailPageClient() {
     async function fetchDocument() {
       setLoading(true);
       setError(null);
-
       try {
         const res = await fetch(`/api/admissions/${slug}`);
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch document.");
-        }
-
+        if (!res.ok) throw new Error("Failed to fetch document.");
         const data: DocumentData = await res.json();
-
-        if (!data || !data._id) {
-          throw new Error("Document not found.");
-        }
-
+        if (!data || !data._id) throw new Error("Document not found.");
         setDocument(data);
       } catch (err) {
         setError((err as Error).message || "Unknown error.");
@@ -67,7 +56,7 @@ export default function DocumentDetailPageClient() {
 
   if (loading) return <p>Loading admission details...</p>;
 
-  if (error) {
+  if (error)
     return (
       <div>
         <p>Error: {error}</p>
@@ -76,7 +65,6 @@ export default function DocumentDetailPageClient() {
         </button>
       </div>
     );
-  }
 
   if (!document) return <p>No document data found.</p>;
 
@@ -90,12 +78,25 @@ export default function DocumentDetailPageClient() {
         {document.eligibility && <p><strong>Eligibility:</strong> {document.eligibility}</p>}
         {document.ageLimit && <p><strong>Age Limit:</strong> {document.ageLimit}</p>}
         {document.course && <p><strong>Courses:</strong> {document.course}</p>}
-
         {document.applicationFee && (
           <div>
             <strong>Application Fee:</strong>
             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(document.applicationFee) }} />
           </div>
+        )}
+
+        {/* New Dates */}
+        {document.applicationBegin && (
+          <p><strong>Application Begins:</strong> {formatDate(document.applicationBegin)}</p>
+        )}
+        {document.lastDateApply && (
+          <p><strong>Last Date to Apply:</strong> {formatDate(document.lastDateApply)}</p>
+        )}
+        {document.admissionDate && (
+          <p><strong>Admission Date:</strong> {formatDate(document.admissionDate)}</p>
+        )}
+        {document.examDate && (
+          <p><strong>Exam Date:</strong> {formatDate(document.examDate)}</p>
         )}
 
         {document.publishDate && (
