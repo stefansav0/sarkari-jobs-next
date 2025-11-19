@@ -41,7 +41,7 @@ const JobDetailClient = ({ jobSlug }: JobDetailClientProps) => {
     useEffect(() => {
         const fetchJobDetail = async () => {
             try {
-                const res = await fetch(`/api/jobs/slug/${jobSlug}`);
+                const res = await fetch(`/api/jobs/${jobSlug}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.message || "Failed to fetch job details.");
                 setJob(data.job);

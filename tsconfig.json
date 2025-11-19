@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,9 +23,28 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "src/app/api/auth/login/route.js",
+    "src/app/api/auth/update-profile/route.js",
+    "src/app/api/auth/verify-otp/route.js",
+    "src/app/api/auth/signup/route.js",
+    "src/app/api/auth/reset-password/route.js",
+    "src/app/api/auth/forgot-password/route.js",
+    "src/app/api/auth/delete-account/route.js",
+    "src/app/api/contact/route.js",
+    "src/app/api/test-db/route.js",
+    "src/app/feed.xml/route.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

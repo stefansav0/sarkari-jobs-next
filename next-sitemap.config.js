@@ -7,7 +7,7 @@ module.exports = {
     changefreq: 'daily',
     priority: 0.7,
 
-    // Do NOT index private pages
+    // Pages Next should NOT include in sitemap
     exclude: [
         '/admin/*',
         '/dashboard/*',
@@ -15,21 +15,32 @@ module.exports = {
         '/login',
         '/signup',
         '/search',
+        '/server-sitemap.xml', // avoid duplication
     ],
 
-    // Add our dynamic sitemap file
+    // Extra dynamic sitemap created manually
     additionalSitemaps: [
         'https://finderight.com/server-sitemap.xml',
     ],
 
-    // Robots.txt rules
     robotsTxtOptions: {
         policies: [
             {
                 userAgent: '*',
                 allow: '/',
-                disallow: ['/admin', '/dashboard', '/profile', '/login', '/signup', '/search'],
+                disallow: [
+                    '/admin',
+                    '/dashboard',
+                    '/profile',
+                    '/login',
+                    '/signup',
+                    '/search',
+                ],
             },
+        ],
+        additionalSitemaps: [
+            'https://finderight.com/sitemap.xml',
+            'https://finderight.com/server-sitemap.xml',
         ],
     },
 };

@@ -13,3 +13,4 @@ Host: https://finderight.com
 
 # Sitemaps
 Sitemap: https://finderight.com/sitemap.xml
+Sitemap: https://finderight.com/server-sitemap.xml
