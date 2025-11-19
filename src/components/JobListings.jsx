@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+"use client";
 
-const JobListings = () => {
+import { useState, useEffect } from "react";
+import Link from "next/link";
+
+export default function JobListings() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/jobs")
+    fetch("/api/jobs", { cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch jobs");
         return res.json();
@@ -23,8 +25,11 @@ const JobListings = () => {
       });
   }, []);
 
-  if (loading) return <p className="text-center text-gray-600">Loading jobs...</p>;
-  if (error) return <p className="text-center text-red-500">{error}</p>;
+  if (loading)
+    return <p className="text-center text-gray-600">Loading jobs...</p>;
+
+  if (error)
+    return <p className="text-center text-red-500">{error}</p>;
 
   return (
     <div className="container mx-auto p-4">
@@ -35,9 +40,12 @@ const JobListings = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {jobs.map((job) => {
-            const departmentSlug = job.department
-              .toLowerCase()
-              .replace(/\s+/g, "-"); // e.g. "Indian Army" -> "indian-army"
+            const jobSlug =
+              job.slug ||
+              job.title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^[-]+|[-]+$/g, "");
 
             return (
               <div
@@ -45,15 +53,19 @@ const JobListings = () => {
                 className="p-4 border rounded-lg shadow-md hover:shadow-lg transition bg-white"
               >
                 <Link
-                  to={`/jobs/${departmentSlug}/${job.slug}`}
+                  href={`/jobs/${jobSlug}`}
                   className="text-lg font-semibold text-blue-600 hover:underline block mb-1"
                 >
                   {job.title}
                 </Link>
+
                 <p className="text-sm text-gray-700">
-                  {job.company} — {job.location}
+                  {job.company || "N/A"} — {job.location || "India"}
                 </p>
-                <p className="text-sm text-gray-600 mt-1">{job.department}</p>
+
+                <p className="text-sm text-gray-600 mt-1">
+                  {job.department || "Government Sector"}
+                </p>
               </div>
             );
           })}
@@ -61,6 +73,4 @@ const JobListings = () => {
       )}
     </div>
   );
-};
-
-export default JobListings;
+}

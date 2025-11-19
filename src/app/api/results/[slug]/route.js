@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Result from "@/lib/models/Result";
 
-
-// Connect DB once
+// Ensure DB connection once
 connectDB();
 
 /* -----------------------------------------
    🟦 GET — Fetch Result by Slug
 ------------------------------------------*/
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
-    const { slug } = params;
+    // params MUST be awaited in App Router API routes
+    const { slug } = await context.params;
 
     if (!slug) {
       return NextResponse.json(
@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    const result = await Result.findOne({ slug });
+    const result = await Result.findOne({ slug }).lean();
 
     if (!result) {
       return NextResponse.json(
@@ -37,7 +37,7 @@ export async function GET(req, { params }) {
     return NextResponse.json(
       {
         message: "❌ Error fetching result",
-        error: error.message
+        error: error.message,
       },
       { status: 500 }
     );
@@ -49,7 +49,7 @@ export async function GET(req, { params }) {
 ------------------------------------------*/
 export function POST() {
   return NextResponse.json(
-    { message: "POST not allowed" },
+    { message: "POST not allowed on this endpoint" },
     { status: 405 }
   );
 }

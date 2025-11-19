@@ -3,11 +3,12 @@ import { connectDB } from "@/lib/db";
 import Job from "@/lib/models/Job";
 
 // GET /api/jobs/[slug]
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
     await connectDB();
 
-    const { slug } = params;
+    // ✅ FIX: params must be awaited
+    const { slug } = await context.params;
 
     if (!slug) {
       return NextResponse.json(
@@ -39,4 +40,12 @@ export async function GET(req, { params }) {
       { status: 500 }
     );
   }
+}
+
+// ❌ Block unsupported methods
+export function POST() {
+  return NextResponse.json(
+    { message: "POST not allowed" },
+    { status: 405 }
+  );
 }

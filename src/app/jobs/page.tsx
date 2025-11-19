@@ -1,119 +1,87 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from "react";
-// Removed react-router-dom import (Code: 2307)
 
-
-// Define the Job interface based on property access in the component
+// ---------- Types ----------
 interface Job {
-  _id: string; // Used for key and routing
-  title: string; // Used for display, search, and table
-  department?: string; // Used for display and search
+  _id: string;
+  title: string;
+  department?: string;
   slug?: string;
-  category?: string; // Used for display and filtering
-  lastDate?: string; // Used for display
+  category?: string;
+  lastDate?: string;
 }
 
-// Interface for the expected API response structure
 interface JobsApiResponse {
   jobs: Job[];
   currentPage: number;
   totalPages: number;
 }
 
-// Utility function for delay (used in retry logic)
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// ---------- Helpers ----------
+const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 const MAX_RETRIES = 3;
 
 const Jobs = () => {
-  // Use TypeScript generics to type the state variables
   const [jobs, setJobs] = useState<Job[]>([]);
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
-  // Ensure 'error' can explicitly hold a string or null (Fixing Code: 2345)
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [search, setSearch] = useState<string>("");
 
-  // Initial data fetch on mount
   useEffect(() => {
     fetchJobs(1, true);
   }, []);
 
+  // ---------- Fetch Jobs ----------
   const fetchJobs = async (pageToFetch: number = 1, replace: boolean = false) => {
     setLoading(true);
     setError(null);
-    let lastError: unknown = null;
-    const url = `api/jobs?page=${pageToFetch}`;
 
-    // LOG THE URL FOR DEBUGGING NETWORK ERRORS
-    console.log("Attempting to fetch jobs from URL:", url);
+    const url = `/api/jobs?page=${pageToFetch}`;
+    console.log("Fetching:", url);
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         const res = await fetch(url);
-
-        if (!res.ok) {
-          // If response status is not 2xx, throw an error with the status
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data: JobsApiResponse = await res.json();
+        const newJobs = Array.isArray(data.jobs) ? data.jobs : [];
 
-        const newJobs: Job[] = Array.isArray(data.jobs) ? data.jobs : [];
-
-        // Explicitly type 'prev' and the return value within setJobs 
-        setJobs((prev: Job[]): Job[] => {
-          const allJobs: Job[] = replace ? newJobs : [...prev, ...newJobs];
-          // The type for job is now correctly inferred as Job
-          const unique = Array.from(new Map(allJobs.map((job) => [job._id, job])).values());
+        setJobs((prev) => {
+          const combined = replace ? newJobs : [...prev, ...newJobs];
+          const unique = Array.from(
+            new Map(combined.map((job) => [job._id, job])).values()
+          );
           return unique;
         });
 
-        setPage(data.currentPage || pageToFetch);
-        setTotalPages(data.totalPages || 1);
+        setPage(data.currentPage);
+        setTotalPages(data.totalPages);
 
-        // Success, break out of the retry loop
         setLoading(false);
         return;
-
       } catch (err) {
-        lastError = err;
-        console.warn(`Fetch attempt ${attempt + 1} failed. Retrying in ${Math.pow(2, attempt)}s...`, err);
-
+        console.warn(`Retry ${attempt + 1} failed:`, err);
         if (attempt < MAX_RETRIES - 1) {
-          // Wait for an exponentially increasing time before retrying
-          await delay(Math.pow(2, attempt) * 1000);
+          await delay((attempt + 1) * 1000); // exponential backoff
         }
       }
     }
 
-    // If we reach here, all retries failed
-    console.error("Network or Fetch Error after all retries:", lastError);
-    setError("Failed to load jobs after multiple attempts. The API server might be down or unreachable.");
+    setError("Failed to load jobs. Please try again later.");
     setLoading(false);
   };
 
-  const handleLoadMore = () => {
-    if (page < totalPages) {
-      fetchJobs(page + 1);
-    }
-  };
+  const filteredJobs = jobs.filter((job) => {
+    const text = search.toLowerCase();
 
-  const jobCategories: string[] = [
-    "All", "SSC", "Railway", "Banking", "UPSC",
-    "Defence", "Medical", "Engineering", "State govt", "Central govt"
-  ];
-
-  // The filteredJobs function now correctly uses the Job type
-  const filteredJobs = jobs.filter((job: Job) => { // Explicitly define job as Job
-    const searchTerm = search.toLowerCase();
-
-    // Use optional chaining (?) for safe property access
     const matchesSearch =
-      job.title?.toLowerCase().includes(searchTerm) ||
-      job.department?.toLowerCase().includes(searchTerm);
+      job.title?.toLowerCase().includes(text) ||
+      job.department?.toLowerCase().includes(text);
 
     const matchesCategory =
       selectedCategory === "All" ||
@@ -122,74 +90,94 @@ const Jobs = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const jobCategories = [
+    "All",
+    "SSC",
+    "Railway",
+    "Banking",
+    "UPSC",
+    "Defence",
+    "Medical",
+    "Engineering",
+    "State govt",
+    "Central govt",
+  ];
+
+  // ---------- UI ----------
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Latest Government Jobs</h1>
+      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
+        Latest Government Jobs
+      </h1>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="mb-6 flex justify-center">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by title or department..."
-          className="w-full max-w-md p-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="Search by job title or department..."
+          className="w-full max-w-md p-2 border rounded shadow-sm focus:ring-2 focus:ring-indigo-500"
         />
       </div>
 
-      {/* Category Filters */}
+      {/* Categories */}
       <div className="flex flex-wrap justify-center gap-3 mb-6">
-        {jobCategories.map((category) => (
+        {jobCategories.map((cat) => (
           <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${selectedCategory === category
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-4 py-2 rounded-full text-sm font-medium ${selectedCategory === cat
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
           >
-            {category}
+            {cat}
           </button>
         ))}
       </div>
 
-      {/* Job Table */}
+      {/* Jobs Table */}
       <div className="overflow-x-auto bg-white shadow rounded-lg border border-gray-200">
         {loading && page === 1 ? (
           <p className="text-center py-8">Loading jobs...</p>
         ) : error ? (
           <p className="text-center text-red-500 py-4">{error}</p>
         ) : filteredJobs.length === 0 ? (
-          <p className="text-center text-gray-600 py-4">No jobs found.</p>
+          <p className="text-center py-4 text-gray-600">No jobs found.</p>
         ) : (
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-indigo-600 text-white">
               <tr>
-                <th className="text-left px-6 py-3 text-sm font-semibold">Job Title</th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">Category</th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">Last Date</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold">
+                  Job Title
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold">
+                  Last Date
+                </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-100">
-              {/* Filtered jobs are now correctly typed as Job[] */}
-              {filteredJobs.map((job: Job) => {
-                const departmentSlug = job.department
-                  ? job.department.toLowerCase().replace(/\s+/g, "-")
-                  : "unknown";
+              {filteredJobs.map((job) => {
                 const jobSlug = job.slug || job._id;
 
                 return (
                   <tr key={job._id} className="hover:bg-indigo-50 transition">
                     <td className="px-6 py-4 text-blue-600 font-medium">
-                      {/* Using standard <a> tag with Next.js 'href' convention */}
-                      <a href={`/jobs/${departmentSlug}/${jobSlug}`}>
-                        {job.title}
-                      </a>
+                      <a href={`/jobs/${jobSlug}`}>{job.title}</a>
                     </td>
-                    <td className="px-6 py-4 text-gray-800 capitalize">{job.category || "—"}</td>
-                    <td className="px-6 py-4 text-gray-700">
+
+                    <td className="px-6 py-4 capitalize">
+                      {job.category || "—"}
+                    </td>
+
+                    <td className="px-6 py-4">
                       {job.lastDate
-                        ? new Date(job.lastDate).toLocaleDateString()
+                        ? new Date(job.lastDate).toLocaleDateString("en-IN")
                         : "—"}
                     </td>
                   </tr>
@@ -200,12 +188,12 @@ const Jobs = () => {
         )}
       </div>
 
-      {/* Load More Button */}
+      {/* Load More */}
       {page < totalPages && (
-        <div className="mt-6 flex justify-center">
+        <div className="flex justify-center mt-6">
           <button
-            onClick={handleLoadMore}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2 rounded-md shadow-md transition"
+            onClick={() => fetchJobs(page + 1)}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow"
           >
             Load More
           </button>

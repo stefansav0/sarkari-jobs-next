@@ -1,152 +1,64 @@
-"use client";
+import { Metadata } from "next";
+import { connectDB } from "@/lib/db";
+import Admission from "@/lib/models/Admission";
+import DocumentDetailPageClient from "./DocumentDetailPageClient";
+import { AdmissionType } from "@/types/admission";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { CalendarDays, ExternalLink } from "lucide-react";
-import DOMPurify from "isomorphic-dompurify";
-import { DocumentData } from "@/types/document";
+interface PageProps {
+  params: Promise<{ slug: string }>;   // ✅ Must be Promise
+}
 
-const formatDate = (dateStr?: string): string | null => {
-  if (!dateStr) return null;
-  const date = new Date(dateStr);
-  return isNaN(date.getTime()) ? null : date.toLocaleDateString("en-GB");
-};
+/* ------------------  Fetch Single Admission  ------------------ */
+async function getAdmission(slug: string): Promise<AdmissionType | null> {
+  await connectDB();
+  const data = await Admission.findOne({ slug }).lean();
+  return data ? (JSON.parse(JSON.stringify(data)) as AdmissionType) : null;
+}
 
-export default function DocumentDetailPageClient() {
-  const params = useParams();
-  const router = useRouter();
+/* ------------------  SEO Metadata  ------------------ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;       // ✅ MUST await
+  const admission = await getAdmission(slug);
 
-  let slug: string | undefined;
-  if (typeof params?.slug === "string") {
-    slug = params.slug;
-  } else if (Array.isArray(params?.slug)) {
-    slug = params.slug[0];
+  if (!admission) {
+    return {
+      title: "Admission Not Found | Finderight",
+      description: "Requested admission details could not be found.",
+    };
   }
 
-  const [document, setDocument] = useState<DocumentData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  return {
+    title: `${admission.title} | Admission Details`,
+    description:
+      admission.eligibility ||
+      `Get detailed information about ${admission.title}.`,
+    alternates: {
+      canonical: `https://finderight.com/admission/${admission.slug}`,
+    },
+    openGraph: {
+      title: admission.title,
+      description: admission.eligibility || "",
+      url: `https://finderight.com/admission/${admission.slug}`,
+      type: "article",
+      publishedTime: admission.publishDate || admission.createdAt,
+      modifiedTime: admission.updatedAt,
+    },
+  };
+}
 
-  useEffect(() => {
-    if (!slug) {
-      setLoading(false);
-      setError("Invalid slug.");
-      return;
-    }
+/* ------------------  Page Component  ------------------ */
+export default async function AdmissionDetailPage({ params }: PageProps) {
+  const { slug } = await params;       // ✅ MUST await
+  const admission = await getAdmission(slug);
 
-    async function fetchDocument() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/admissions/${slug}`);
-        if (!res.ok) throw new Error("Failed to fetch document.");
-        const data: DocumentData = await res.json();
-        if (!data || !data._id) throw new Error("Document not found.");
-        setDocument(data);
-      } catch (err) {
-        setError((err as Error).message || "Unknown error.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchDocument();
-  }, [slug]);
-
-  if (loading) return <p>Loading admission details...</p>;
-
-  if (error)
+  if (!admission) {
     return (
-      <div>
-        <p>Error: {error}</p>
-        <button onClick={() => router.back()} className="text-blue-600 underline">
-          Go Back
-        </button>
+      <div className="p-4 text-center">
+        <h1 className="text-2xl font-bold">Admission Not Found</h1>
+        <p>Please check the URL.</p>
       </div>
     );
+  }
 
-  if (!document) return <p>No document data found.</p>;
-
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-3xl font-bold text-blue-700 mb-4">{document.title}</h1>
-
-      {/* Basic Info */}
-      <div className="space-y-2 text-gray-700 text-sm mb-6">
-        {document.conductedBy && <p><strong>Conducted By:</strong> {document.conductedBy}</p>}
-        {document.eligibility && <p><strong>Eligibility:</strong> {document.eligibility}</p>}
-        {document.ageLimit && <p><strong>Age Limit:</strong> {document.ageLimit}</p>}
-        {document.course && <p><strong>Courses:</strong> {document.course}</p>}
-        {document.applicationFee && (
-          <div>
-            <strong>Application Fee:</strong>
-            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(document.applicationFee) }} />
-          </div>
-        )}
-
-        {/* New Dates */}
-        {document.applicationBegin && (
-          <p><strong>Application Begins:</strong> {formatDate(document.applicationBegin)}</p>
-        )}
-        {document.lastDateApply && (
-          <p><strong>Last Date to Apply:</strong> {formatDate(document.lastDateApply)}</p>
-        )}
-        {document.admissionDate && (
-          <p><strong>Admission Date:</strong> {formatDate(document.admissionDate)}</p>
-        )}
-        {document.examDate && (
-          <p><strong>Exam Date:</strong> {formatDate(document.examDate)}</p>
-        )}
-
-        {document.publishDate && (
-          <p className="flex items-center">
-            <CalendarDays className="w-4 h-4 mr-1" />
-            Published: {formatDate(document.publishDate)}
-          </p>
-        )}
-      </div>
-
-      {/* Full Course Details */}
-      {document.fullCourseDetails && (
-        <div className="border p-4 rounded mb-4 bg-white shadow-sm overflow-auto">
-          <h2 className="text-lg font-semibold text-blue-600 mb-2">Full Course Details</h2>
-          <div
-            className="text-sm text-gray-800 prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(document.fullCourseDetails) }}
-          />
-        </div>
-      )}
-
-      {/* Important Links */}
-      {document.importantLinks && Object.keys(document.importantLinks).length > 0 && (
-        <div className="border p-4 rounded mb-4 bg-white shadow-sm">
-          <h2 className="text-lg font-semibold mb-2 text-blue-600">Important Links</h2>
-          <ul className="space-y-2 list-disc pl-5">
-            {Object.entries(document.importantLinks).map(([key, value]) =>
-              value ? (
-                <li key={key}>
-                  <a
-                    href={value}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center"
-                  >
-                    {key.replace(/([A-Z])/g, " $1")} <ExternalLink className="w-4 h-4 ml-1" />
-                  </a>
-                </li>
-              ) : null
-            )}
-          </ul>
-        </div>
-      )}
-
-      {/* Back Link */}
-      <div className="text-center mt-6">
-        <Link href="/admission" className="text-blue-600 hover:underline font-medium">
-          ← Back to admission list
-        </Link>
-      </div>
-    </div>
-  );
+  return <DocumentDetailPageClient admission={admission} />;
 }

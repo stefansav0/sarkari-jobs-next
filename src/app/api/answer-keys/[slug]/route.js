@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import AnswerKey from "@/lib/models/AnswerKey";
 
-// Connect once
+// ✅ Connect DB once globally
 connectDB();
 
 /* -----------------------------------------
    🟦 GET — Fetch Answer Key by Slug
 ------------------------------------------*/
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
-    const { slug } = params;
+    // ⭐ FIX: params must be awaited
+    const { slug } = await context.params;
 
     if (!slug) {
       return NextResponse.json(
