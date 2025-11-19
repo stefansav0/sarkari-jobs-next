@@ -4,15 +4,25 @@ import StudyNews from "@/lib/models/StudyNews";
 import slugify from "slugify";
 import { sendToAllUsers } from "@/lib/sendEmail";
 
-// Connect to DB once
+// Connect to DB globally
 connectDB();
+
+/* -----------------------------------------
+   Types
+------------------------------------------*/
+interface StudyNewsRequestBody {
+  title: string;
+  description: string;
+  coverImage?: string;
+  author?: string;
+}
 
 /* -----------------------------------------
    🟩 POST — Create Study News + Send Email
 ------------------------------------------*/
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body: StudyNewsRequestBody = await req.json();
     const { title, description, coverImage, author } = body;
 
     if (!title) {
@@ -24,7 +34,7 @@ export async function POST(req) {
 
     const slug = slugify(title, { lower: true, strict: true });
 
-    // Check duplicate slug
+    // Duplicate slug check
     const exists = await StudyNews.findOne({ slug });
     if (exists) {
       return NextResponse.json(
@@ -44,55 +54,67 @@ export async function POST(req) {
 
     await news.save();
 
-    // Send email notifications
-    await sendToAllUsers({
-      subject: "📢 New Study Update Just In!",
-      html: `
-        <div style="font-family: Arial; max-width: 600px; margin: auto; padding: 16px;">
-          <div style="background-color: #0057ff; padding: 16px; color: white; border-radius: 8px;">
-            <strong>📰 Finderight News Alert</strong>
-          </div>
-          <p>Hi {{name}}, a new article has been posted:</p>
-          <h3>${title}</h3>
-          <p>${description.slice(0, 200)}...</p>
-          <a 
-            href="${process.env.FRONTEND_URL}/study-news/${slug}"
-            style="display:block; padding:12px; background:#0057ff; color:#fff; 
-                   text-align:center; border-radius:6px; margin-top:10px;">
-            👉 Read Full Article
-          </a>
-        </div>
-      `,
-    });
+    /* --- Send Email Notification --- */
+    try {
+      await sendToAllUsers({
+        subject: "📢 New Study Update Just In!",
+        html: `
+            <div style="font-family: Arial; max-width: 600px; margin: auto; padding: 16px;">
+                <div style="background-color: #0057ff; padding: 16px; color: white; border-radius: 8px;">
+                    <strong>📰 Finderight News Alert</strong>
+                </div>
+                <p>Hi {{name}}, a new article has been posted:</p>
+                <h3>${title}</h3>
+                <p>${description.slice(0, 200)}...</p>
+                <a 
+                    href="${process.env.FRONTEND_URL}/study-news/${slug}"
+                    style="display:block; padding:12px; background:#0057ff; color:#fff; 
+                        text-align:center; border-radius:6px; margin-top:10px;">
+                    👉 Read Full Article
+                </a>
+            </div>
+        `,
+      });
+    } catch (emailErr: unknown) {
+      if (emailErr instanceof Error) {
+        console.error("❌ Email sending failed:", emailErr.message);
+      } else {
+        console.error("❌ Email sending failed:", emailErr);
+      }
+    }
 
     return NextResponse.json(
       { message: "✅ Study News created successfully", news },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("❌ Error saving study news:", error);
+
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("❌ Error saving study news:", errMsg);
+
     return NextResponse.json(
-      { message: "❌ Error saving news", error: error.message },
+      { message: "❌ Error saving news", error: errMsg },
       { status: 500 }
     );
   }
 }
 
 /* -----------------------------------------
-   🟦 GET — List or Single News by Slug
+   🟦 GET — Single News (slug) OR Paginated List
 ------------------------------------------*/
-export async function GET(req) {
+export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
 
-    /** If slug is provided → get single news */
-    if (searchParams.get("slug")) {
-      const slug = searchParams.get("slug");
+    const slug = searchParams.get("slug");
+
+    /* ----- Fetch Single Article ----- */
+    if (slug) {
       const news = await StudyNews.findOne({ slug });
 
       if (!news) {
         return NextResponse.json(
-          { message: "Study News not found" },
+          { message: "❌ Study News not found" },
           { status: 404 }
         );
       }
@@ -100,8 +122,8 @@ export async function GET(req) {
       return NextResponse.json(news, { status: 200 });
     }
 
-    /** Otherwise → paginated list */
-    const page = parseInt(searchParams.get("page")) || 1;
+    /* ----- Paginated List ----- */
+    const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = 10;
     const skip = (page - 1) * limit;
 
@@ -120,18 +142,21 @@ export async function GET(req) {
       },
       { status: 200 }
     );
-  } catch (error) {
-    console.error("❌ Error fetching study news:", error);
+
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+
+    console.error("❌ Error fetching study news:", errMsg);
 
     return NextResponse.json(
-      { message: "❌ Server error", error: error.message },
+      { message: "❌ Server error", error: errMsg },
       { status: 500 }
     );
   }
 }
 
 /* -----------------------------------------
-   ❌ Block unsupported methods
+   ❌ Methods Not Allowed
 ------------------------------------------*/
 export function PUT() {
   return NextResponse.json(
