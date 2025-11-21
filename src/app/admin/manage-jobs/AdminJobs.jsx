@@ -12,6 +12,7 @@ const AdminJobs = () => {
         try {
             const res = await fetch("/api/jobs");
             const data = await res.json();
+
             if (res.ok) {
                 setJobs(data.jobs || []);
             } else {
@@ -24,17 +25,17 @@ const AdminJobs = () => {
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (slug) => {
         if (!window.confirm("Are you sure you want to delete this job?")) return;
 
         try {
-            const res = await fetch(`/api/jobs/id/${id}`, {
+            const res = await fetch(`/api/jobs/${slug}`, {
                 method: "DELETE",
             });
 
             if (res.ok) {
                 alert("🗑️ Job deleted successfully");
-                setJobs((prevJobs) => prevJobs.filter((job) => job._id !== id));
+                setJobs((prev) => prev.filter((job) => job.slug !== slug));
             } else {
                 const data = await res.json();
                 alert(`❌ Failed to delete: ${data.message || "Unknown error"}`);
@@ -45,7 +46,6 @@ const AdminJobs = () => {
         }
     };
 
-
     useEffect(() => {
         fetchJobs();
     }, []);
@@ -54,6 +54,7 @@ const AdminJobs = () => {
         <div className="max-w-5xl mx-auto p-6">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Manage Jobs</h1>
+
                 <Link
                     href="/admin/add-job"
                     className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow"
@@ -72,7 +73,7 @@ const AdminJobs = () => {
                 <div className="grid gap-4">
                     {jobs.map((job) => (
                         <div
-                            key={job._id}
+                            key={job.slug}
                             className="border rounded p-4 shadow-md bg-white flex justify-between items-start"
                         >
                             <div>
@@ -80,20 +81,13 @@ const AdminJobs = () => {
                                 <p className="text-gray-600">{job.department}</p>
                                 <p className="text-sm text-gray-400">{job.category}</p>
                             </div>
-                            <div className="flex gap-2">
-                                <Link
-                                    href={`/admin/edit-job/${job._id}`}
-                                    className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm"
-                                >
-                                    ✏️ Edit
-                                </Link>
-                                <button
-                                    onClick={() => handleDelete(job._id)}
-                                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                                >
-                                    🗑️ Delete
-                                </button>
-                            </div>
+
+                            <button
+                                onClick={() => handleDelete(job.slug)}
+                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                            >
+                                🗑️ Delete
+                            </button>
                         </div>
                     ))}
                 </div>

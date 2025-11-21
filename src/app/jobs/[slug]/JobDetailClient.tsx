@@ -3,9 +3,7 @@
 import Head from "next/head";
 import Link from "next/link";
 
-/* -------------------------------
-   Full Job Type (Strict Typing)
--------------------------------- */
+/* ------------ TYPES (match your current DB) ------------ */
 interface ImportantDates {
     applicationBegin?: string;
     lastDateApply?: string;
@@ -27,19 +25,21 @@ export interface JobType {
     eligibility?: string;
     ageLimit?: string;
     lastDate?: string;
-    applicationFee?: string;
-    vacancy?: string;
+    applicationFee?: string; // HTML string
+    vacancy?: string;        // HTML string
     description?: string;
     importantDates?: ImportantDates;
     importantLinks?: ImportantLinks;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
-/* Props type → No more ANY */
+/* Props */
 interface JobDetailClientProps {
     job: JobType | null;
 }
 
-/* -------- HTML DECODE -------- */
+/* -------- HTML DECODE (for stored HTML strings) -------- */
 function decodeHtml(html?: string): string {
     if (!html) return "";
     return html
@@ -48,25 +48,34 @@ function decodeHtml(html?: string): string {
         .replace(/\\u002F/g, "/");
 }
 
-/* -------- SAFE DATE FORMATTER -------- */
-function formatDateSafe(value: string | undefined): string {
+/* -------- DATE FORMATTER -------- */
+function formatDateTime(value?: string): string {
     if (!value) return "—";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
 
-    // If value contains alphabets → return raw
-    if (/^[a-zA-Z ]+$/.test(value)) return value;
+    return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
 
-    const date = new Date(value);
+function formatDateOnly(value?: string): string {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
 
-    if (isNaN(date.getTime())) return value;
-
-    return date.toLocaleDateString("en-IN", {
+    return d.toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
     });
 }
 
-/* -------- COMPONENT -------- */
+/* ---------------- COMPONENT ---------------- */
 export default function JobDetailClient({ job }: JobDetailClientProps) {
     if (!job) {
         return (
@@ -77,13 +86,14 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
     }
 
     const canonicalUrl = `https://finderight.com/jobs/${job.slug}`;
+    const lastUpdated = job.updatedAt || job.createdAt;
 
     const structuredData = {
         "@context": "https://schema.org",
         "@type": "JobPosting",
         title: job.title,
         description: job.description,
-        datePosted: job.importantDates?.applicationBegin || new Date().toISOString(),
+        datePosted: job.importantDates?.applicationBegin || job.createdAt,
         validThrough: job.lastDate || undefined,
         hiringOrganization: {
             "@type": "Organization",
@@ -93,22 +103,21 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
         employmentType: "FULL_TIME",
         jobLocation: {
             "@type": "Place",
-            address: {
-                "@type": "PostalAddress",
-                addressCountry: "IN",
-            },
+            address: { "@type": "PostalAddress", addressCountry: "IN" },
         },
     };
 
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-4xl bg-white shadow-xl rounded-xl my-10">
-
+        <div className="container mx-auto p-4 md:p-8 max-w-5xl bg-white shadow-xl rounded-xl my-10">
             {/* SEO Metadata */}
             <Head>
                 <title>{job.title} | Finderight</title>
                 <meta
                     name="description"
-                    content={job.description?.slice(0, 160) || `Details for ${job.title}`}
+                    content={
+                        job.description?.slice(0, 160) ||
+                        `Details for ${job.title} recruitment.`
+                    }
                 />
                 <link rel="canonical" href={canonicalUrl} />
                 <script
@@ -119,131 +128,239 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                 />
             </Head>
 
-            {/* TITLE */}
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 text-center mb-3">
+            {/* MAIN HEADING */}
+            <h1 className="text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-4">
                 {job.title}
             </h1>
-
-            <p className="text-center text-lg text-indigo-600 font-medium mb-6">
-                {job.department || "Recruitment Details"}
-            </p>
-
-            {/* KEY HIGHLIGHTS */}
-            <div className="bg-indigo-50 p-5 rounded-lg border-l-4 border-indigo-600 mb-8">
-                <h2 className="text-xl font-bold text-indigo-700 mb-3">Key Highlights</h2>
-
-                <ul className="text-gray-700 space-y-1">
-                    <li><strong>Eligibility:</strong> {job.eligibility || "—"}</li>
-                    <li><strong>Age Limit:</strong> {job.ageLimit || "—"}</li>
-                    <li><strong>Last Date:</strong> {formatDateSafe(job.lastDate)}</li>
-                </ul>
-            </div>
-
-            {/* DESCRIPTION */}
-            {job.description && (
-                <section className="mb-8">
-                    <h2 className="text-2xl font-bold text-indigo-700 mb-2">Job Description</h2>
-                    <p className="text-gray-700 whitespace-pre-line leading-relaxed">
-                        {job.description}
-                    </p>
-                </section>
+            {job.department && (
+                <p className="text-center text-lg text-indigo-700 font-semibold mb-6">
+                    {job.department}
+                </p>
             )}
 
-            {/* FEE + VACANCY */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-
-                {job.applicationFee && (
-                    <div className="border p-5 rounded-lg bg-gray-50 shadow">
-                        <h2 className="text-xl font-bold text-indigo-700 mb-2">Application Fee</h2>
-                        <div
-                            className="prose"
-                            dangerouslySetInnerHTML={{ __html: decodeHtml(job.applicationFee) }}
-                        />
-                    </div>
-                )}
-
-                {job.vacancy && (
-                    <div className="border p-5 rounded-lg bg-gray-50 shadow">
-                        <h2 className="text-xl font-bold text-indigo-700 mb-2">Vacancy Details</h2>
-                        <div
-                            className="prose"
-                            dangerouslySetInnerHTML={{ __html: decodeHtml(job.vacancy) }}
-                        />
-                    </div>
-                )}
+            {/* ======= TOP INFO (Name of Post / Last Updated / Short Info) ======= */}
+            <section className="mb-8 border rounded-lg overflow-hidden">
+                <table className="w-full text-sm md:text-base">
+                    <tbody>
+                        <tr className="border-b">
+                            <td className="w-1/4 font-bold text-red-600 p-3 align-top">
+                                Name of Post:
+                            </td>
+                            <td className="p-3 text-blue-700 font-semibold">
+                                {job.title}
+                            </td>
+                        </tr>
+                        <tr className="border-b">
+                            <td className="font-bold text-red-600 p-3 align-top">
+                                Last Updated:
+                            </td>
+                            <td className="p-3">{formatDateTime(lastUpdated)}</td>
+                        </tr>
+                        <tr>
+                            <td className="font-bold text-red-600 p-3 align-top">
+                                Short Information:
+                            </td>
+                            <td className="p-3 leading-relaxed">
+                                {job.description ||
+                                    "Detailed notification and eligibility information is provided below."}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </section>
 
-            {/* IMPORTANT DATES */}
-            {job.importantDates && (
-                <section className="mb-10">
-                    <h2 className="text-2xl font-bold text-indigo-700 mb-4">Important Dates</h2>
-
-                    <table className="w-full border rounded-lg text-gray-700">
+            {/* ======= IMPORTANT DATES + APPLICATION FEE (two-column table) ======= */}
+            {(job.importantDates || job.applicationFee) && (
+                <section className="mb-8 border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm md:text-base">
+                        <thead>
+                            <tr className="bg-gray-100 text-green-700 font-bold text-center">
+                                <th className="w-1/2 p-3 border-r">Important Dates</th>
+                                <th className="w-1/2 p-3">Application Fee</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            {Object.entries(job.importantDates).map(([key, value]) => (
-                                <tr key={key} className="border-b">
-                                    <td className="p-3 font-semibold capitalize">
-                                        {key.replace(/([A-Z])/g, " $1")}
-                                    </td>
-                                    <td className="p-3">{formatDateSafe(value)}</td>
-                                </tr>
-                            ))}
+                            <tr>
+                                {/* Important Dates */}
+                                <td className="align-top p-3 border-r">
+                                    {job.importantDates ? (
+                                        <ul className="list-disc ml-5 space-y-1">
+                                            {job.importantDates.applicationBegin && (
+                                                <li>
+                                                    Application Begin:{" "}
+                                                    <span className="font-semibold">
+                                                        {job.importantDates.applicationBegin}
+                                                    </span>
+                                                </li>
+                                            )}
+                                            {job.importantDates.lastDateApply && (
+                                                <li>
+                                                    Apply Last Date:{" "}
+                                                    <span className="font-semibold">
+                                                        {formatDateOnly(job.importantDates.lastDateApply)}
+                                                    </span>
+                                                </li>
+                                            )}
+                                            {job.importantDates.lastDateFee && (
+                                                <li>
+                                                    Fee Payment Last Date:{" "}
+                                                    <span className="font-semibold">
+                                                        {formatDateOnly(job.importantDates.lastDateFee)}
+                                                    </span>
+                                                </li>
+                                            )}
+                                            {job.importantDates.examDate && (
+                                                <li>
+                                                    Exam Date:{" "}
+                                                    <span className="font-semibold">
+                                                        {job.importantDates.examDate}
+                                                    </span>
+                                                </li>
+                                            )}
+                                            {job.importantDates.admitCard && (
+                                                <li>
+                                                    Admit Card:{" "}
+                                                    <span className="font-semibold">
+                                                        {job.importantDates.admitCard}
+                                                    </span>
+                                                </li>
+                                            )}
+                                        </ul>
+                                    ) : (
+                                        <p>—</p>
+                                    )}
+                                </td>
+
+                                {/* Application Fee */}
+                                <td className="align-top p-3">
+                                    {job.applicationFee ? (
+                                        <div
+                                            className="leading-relaxed"
+                                            dangerouslySetInnerHTML={{
+                                                __html: decodeHtml(job.applicationFee),
+                                            }}
+                                        />
+                                    ) : (
+                                        <p>—</p>
+                                    )}
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </section>
             )}
 
-            {/* IMPORTANT LINKS */}
-            {job.importantLinks && (
-                <section className="mb-10 bg-indigo-50 p-6 rounded-lg shadow">
-                    <h2 className="text-2xl font-bold text-indigo-700 mb-4 text-center">
-                        Important Links
+            {/* ======= AGE LIMIT SECTION ======= */}
+            {job.ageLimit && (
+                <section className="mb-8 border rounded-lg p-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-green-700 mb-2">
+                        Age Limit
                     </h2>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-                        {job.importantLinks.applyOnline && (
-                            <a
-                                href={job.importantLinks.applyOnline}
-                                target="_blank"
-                                className="bg-green-600 hover:bg-green-700 text-white p-3 font-semibold rounded-lg text-center"
-                            >
-                                Apply Online
-                            </a>
-                        )}
-
-                        {job.importantLinks.downloadNotification && (
-                            <a
-                                href={job.importantLinks.downloadNotification}
-                                target="_blank"
-                                className="bg-blue-600 hover:bg-blue-700 text-white p-3 font-semibold rounded-lg text-center"
-                            >
-                                Notification
-                            </a>
-                        )}
-
-                        {job.importantLinks.officialWebsite && (
-                            <a
-                                href={job.importantLinks.officialWebsite}
-                                target="_blank"
-                                className="bg-gray-700 hover:bg-gray-800 text-white p-3 font-semibold rounded-lg text-center"
-                            >
-                                Official Website
-                            </a>
-                        )}
-                    </div>
+                    <p className="leading-relaxed">{job.ageLimit}</p>
                 </section>
             )}
 
-            {/* BACK */}
+            {/* ======= VACANCY DETAILS ======= */}
+            {job.vacancy && (
+                <section className="mb-8 border rounded-lg p-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-green-700 mb-3">
+                        Vacancy Details
+                    </h2>
+                    <div
+                        className="leading-relaxed"
+                        dangerouslySetInnerHTML={{
+                            __html: decodeHtml(job.vacancy),
+                        }}
+                    />
+                </section>
+            )}
+
+            {/* ======= ELIGIBILITY (simple paragraph for now) ======= */}
+            {job.eligibility && (
+                <section className="mb-8 border rounded-lg p-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-green-700 mb-2">
+                        Eligibility
+                    </h2>
+                    <p className="leading-relaxed">{job.eligibility}</p>
+                </section>
+            )}
+
+            {/* ======= IMPORTANT LINKS TABLE (Click Here style) ======= */}
+            {job.importantLinks && (
+                <section className="mb-10 border rounded-lg overflow-hidden">
+                    <h2 className="text-xl md:text-2xl font-bold text-center text-pink-700 py-3 border-b">
+                        Some Useful Important Links
+                    </h2>
+
+                    <table className="w-full text-sm md:text-base">
+                        <tbody>
+                            {job.importantLinks.applyOnline && (
+                                <tr className="border-b">
+                                    <td className="p-3 font-bold text-pink-700">
+                                        Apply Online
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        <a
+                                            href={job.importantLinks.applyOnline}
+                                            target="_blank"
+                                            className="text-blue-700 font-semibold underline"
+                                        >
+                                            Click Here
+                                        </a>
+                                    </td>
+                                </tr>
+                            )}
+
+                            {job.importantLinks.downloadNotification && (
+                                <tr className="border-b">
+                                    <td className="p-3 font-bold text-pink-700">
+                                        Download Official Notification
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        <a
+                                            href={job.importantLinks.downloadNotification}
+                                            target="_blank"
+                                            className="text-blue-700 font-semibold underline"
+                                        >
+                                            Click Here
+                                        </a>
+                                    </td>
+                                </tr>
+                            )}
+
+                            {job.importantLinks.officialWebsite && (
+                                <tr>
+                                    <td className="p-3 font-bold text-pink-700">
+                                        Official Website
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        <a
+                                            href={job.importantLinks.officialWebsite}
+                                            target="_blank"
+                                            className="text-blue-700 font-semibold underline"
+                                        >
+                                            Click Here
+                                        </a>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </section>
+            )}
+
+            {/* BACK LINK */}
             <div className="text-center mt-10">
-                <Link href="/jobs" className="text-indigo-600 text-lg font-semibold hover:underline">
+                <Link
+                    href="/jobs"
+                    className="text-indigo-600 text-lg font-semibold hover:underline"
+                >
                     ← Back to All Jobs
                 </Link>
             </div>
 
-            <footer className="mt-10 text-center text-gray-600 text-sm">
-                Always verify information from official government sources.
+            <footer className="mt-6 text-center text-gray-600 text-xs">
+                Always verify details from the official website before applying.
             </footer>
         </div>
     );
