@@ -56,7 +56,7 @@ export async function POST(req) {
             <li><strong>🏢 Department:</strong> ${job.department}</li>
             <li><strong>⏰ Last Date:</strong> ${new Date(job.lastDate).toISOString().split("T")[0]}</li>
           </ul>
-          <a href="${process.env.FRONTEND_URL}/jobs/${job.department.toLowerCase()}/${job.slug}">
+          <a href="${process.env.FRONTEND_URL}/jobs/${job.slug}">
             👉 View Full Job Details
           </a>
           <p>Best,<br />Finderight Team</p>
