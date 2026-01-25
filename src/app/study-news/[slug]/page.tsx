@@ -30,15 +30,20 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
-/* 🔥 Auto extract array (robust) */
-function extractArray(obj: any): News[] {
-  if (!obj || typeof obj !== "object") return [];
-  if (Array.isArray(obj)) return obj;
-
-  for (const key in obj) {
-    const found = extractArray(obj[key]);
-    if (Array.isArray(found)) return found;
+/* ✅ Safe recursive extractor (NO any) */
+function extractArray(input: unknown): News[] {
+  if (Array.isArray(input)) {
+    return input as News[];
   }
+
+  if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    for (const key in record) {
+      const found = extractArray(record[key]);
+      if (found.length) return found;
+    }
+  }
+
   return [];
 }
 
@@ -70,11 +75,11 @@ async function getRelated(slug: string): Promise<News[]> {
 
   if (!res.ok) return [];
 
-  const data = await res.json();
+  const data: unknown = await res.json();
   const list = extractArray(data);
 
   return list
-    .filter((item: News) => item.slug && item.slug !== slug)
+    .filter((item) => item.slug && item.slug !== slug)
     .slice(0, 5);
 }
 
@@ -84,10 +89,9 @@ async function getRelated(slug: string): Promise<News[]> {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const news = await getNews(slug);
+  const news = await getNews(params.slug);
 
   if (!news) {
     return {
@@ -98,7 +102,7 @@ export async function generateMetadata({
   }
 
   const description = stripHtml(news.description).slice(0, 160);
-  const canonicalUrl = `https://finderight.com/study-news/${slug}`;
+  const canonicalUrl = `https://finderight.com/study-news/${params.slug}`;
   const cover = news.coverImage || "https://finderight.com/default-cover.jpg";
 
   return {
@@ -133,13 +137,12 @@ export async function generateMetadata({
 export default async function StudyNewsDetail({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await params;
-  const news = await getNews(slug);
+  const news = await getNews(params.slug);
   if (!news) return notFound();
 
-  const related = await getRelated(slug);
+  const related = await getRelated(params.slug);
   const coverImage = news.coverImage || "/default-cover.jpg";
 
   /* -------- Structured Data -------- */
@@ -162,7 +165,7 @@ export default async function StudyNewsDetail({
     },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `https://finderight.com/study-news/${slug}`,
+      "@id": `https://finderight.com/study-news/${params.slug}`,
     },
   };
 

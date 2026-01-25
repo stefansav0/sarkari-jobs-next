@@ -1,6 +1,8 @@
+// src/app/result/[slug]/page.tsx
+
 import React from "react";
 import Link from "next/link";
-import { CalendarDays, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { headers } from "next/headers";
 import { Metadata } from "next";
 
@@ -37,7 +39,6 @@ async function getResult(slug: string): Promise<ResultType | null> {
   });
 
   if (!res.ok) return null;
-
   return res.json();
 }
 
@@ -128,10 +129,6 @@ function JsonLdSchemas(result: ResultType) {
         url: "https://finderight.com/logo.png",
       },
     },
-    speakable: {
-      "@type": "SpeakableSpecification",
-      xpath: ["/html/head/title", "//h1"],
-    },
   };
 
   const faqSchema = result.howToCheck
@@ -207,7 +204,11 @@ export default async function ResultDetailPage({
   const result = await getResult(params.slug);
 
   if (!result) {
-    return <div className="text-center mt-10 text-red-600">Result not found.</div>;
+    return (
+      <div className="text-center mt-10 text-red-600">
+        Result not found.
+      </div>
+    );
   }
 
   return (
@@ -219,14 +220,20 @@ export default async function ResultDetailPage({
       </h1>
 
       <div className="text-sm text-gray-700 space-y-2 mb-6">
-        {result.conductedBy && <p><strong>Conducted By:</strong> {result.conductedBy}</p>}
+        {result.conductedBy && (
+          <p>
+            <strong>Conducted By:</strong> {result.conductedBy}
+          </p>
+        )}
         {result.examDate && <p>📅 Exam Date: {result.examDate}</p>}
         {result.resultDate && <p>📢 Result Date: {result.resultDate}</p>}
       </div>
 
       {result.shortInfo && (
         <section className="bg-gray-50 border p-4 rounded mb-4">
-          <h2 className="font-semibold text-blue-600 mb-2">Latest Update</h2>
+          <h2 className="font-semibold text-blue-600 mb-2">
+            Latest Update
+          </h2>
           <p>{result.shortInfo}</p>
         </section>
       )}
@@ -240,7 +247,7 @@ export default async function ResultDetailPage({
         </section>
       )}
 
-      {result.importantLinks?.length && (
+      {result.importantLinks?.length ? (
         <section className="border p-4 rounded">
           <h2 className="font-semibold text-blue-600 mb-2">
             Important Links
@@ -254,13 +261,14 @@ export default async function ResultDetailPage({
                   rel="noopener noreferrer"
                   className="text-blue-600 flex items-center"
                 >
-                  {l.label} <ExternalLink className="w-4 h-4 ml-1" />
+                  {l.label}
+                  <ExternalLink className="w-4 h-4 ml-1" />
                 </a>
               </li>
             ))}
           </ul>
         </section>
-      )}
+      ) : null}
 
       <div className="mt-8 text-center">
         <Link href="/result" className="text-blue-600 hover:underline">

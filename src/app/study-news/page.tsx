@@ -18,16 +18,21 @@ interface NewsItem {
 }
 
 /* --------------------------------
-   Helper: extract array safely
+   Helper: extract array safely (NO any)
 -------------------------------- */
-function extractArray(obj: any): NewsItem[] {
-  if (!obj || typeof obj !== "object") return [];
-  if (Array.isArray(obj)) return obj;
-
-  for (const key in obj) {
-    const found = extractArray(obj[key]);
-    if (Array.isArray(found)) return found;
+function extractArray(input: unknown): NewsItem[] {
+  if (Array.isArray(input)) {
+    return input as NewsItem[];
   }
+
+  if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    for (const key in record) {
+      const found = extractArray(record[key]);
+      if (found.length) return found;
+    }
+  }
+
   return [];
 }
 
@@ -50,7 +55,7 @@ export default async function StudyNewsList() {
     );
   }
 
-  const data = await res.json();
+  const data: unknown = await res.json();
   const news: NewsItem[] = extractArray(data);
 
   if (news.length === 0) {
