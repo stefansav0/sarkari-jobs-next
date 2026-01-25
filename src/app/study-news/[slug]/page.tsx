@@ -32,9 +32,7 @@ function stripHtml(html: string): string {
 
 /* ✅ Safe recursive extractor (NO any) */
 function extractArray(input: unknown): News[] {
-  if (Array.isArray(input)) {
-    return input as News[];
-  }
+  if (Array.isArray(input)) return input as News[];
 
   if (input && typeof input === "object") {
     const record = input as Record<string, unknown>;
@@ -43,7 +41,6 @@ function extractArray(input: unknown): News[] {
       if (found.length) return found;
     }
   }
-
   return [];
 }
 
@@ -63,7 +60,7 @@ async function getNews(slug: string): Promise<News | null> {
 }
 
 /* -------------------------------
-   Fetch Related Articles (FIXED)
+   Fetch Related Articles
 -------------------------------- */
 async function getRelated(slug: string): Promise<News[]> {
   const base =
@@ -78,31 +75,29 @@ async function getRelated(slug: string): Promise<News[]> {
   const data: unknown = await res.json();
   const list = extractArray(data);
 
-  return list
-    .filter((item) => item.slug && item.slug !== slug)
-    .slice(0, 5);
+  return list.filter((n) => n.slug !== slug).slice(0, 5);
 }
 
 /* -------------------------------
-   SEO Metadata
+   SEO Metadata (FIXED)
 -------------------------------- */
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const news = await getNews(params.slug);
+  const { slug } = await params; // ✅ FIX
+  const news = await getNews(slug);
 
   if (!news) {
     return {
       title: "Study News Not Found | Finderight",
-      description: "Requested study news article does not exist.",
-      robots: "noindex, nofollow",
+      robots: { index: false, follow: false },
     };
   }
 
   const description = stripHtml(news.description).slice(0, 160);
-  const canonicalUrl = `https://finderight.com/study-news/${params.slug}`;
+  const canonicalUrl = `https://finderight.com/study-news/${slug}`;
   const cover = news.coverImage || "https://finderight.com/default-cover.jpg";
 
   return {
@@ -115,9 +110,9 @@ export async function generateMetadata({
       description,
       url: canonicalUrl,
       type: "article",
-      images: [{ url: cover, width: 1200, height: 630 }],
       siteName: "Finderight",
       publishedTime: news.createdAt,
+      images: [{ url: cover, width: 1200, height: 630 }],
     },
 
     twitter: {
@@ -132,17 +127,19 @@ export async function generateMetadata({
 }
 
 /* -------------------------------
-   Page Component
+   Page Component (FIXED)
 -------------------------------- */
 export default async function StudyNewsDetail({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const news = await getNews(params.slug);
+  const { slug } = await params; // ✅ FIX
+  const news = await getNews(slug);
+
   if (!news) return notFound();
 
-  const related = await getRelated(params.slug);
+  const related = await getRelated(slug);
   const coverImage = news.coverImage || "/default-cover.jpg";
 
   /* -------- Structured Data -------- */
@@ -154,7 +151,10 @@ export default async function StudyNewsDetail({
     dateModified: news.createdAt,
     description: stripHtml(news.description).slice(0, 160),
     image: [coverImage],
-    author: { "@type": "Organization", name: "Finderight" },
+    author: {
+      "@type": "Organization",
+      name: "Finderight",
+    },
     publisher: {
       "@type": "Organization",
       name: "Finderight",
@@ -165,7 +165,7 @@ export default async function StudyNewsDetail({
     },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `https://finderight.com/study-news/${params.slug}`,
+      "@id": `https://finderight.com/study-news/${slug}`,
     },
   };
 
@@ -223,7 +223,7 @@ export default async function StudyNewsDetail({
             />
           </Paper>
 
-          {/* RELATED ARTICLES */}
+          {/* RELATED */}
           <Box sx={{ display: { xs: "none", md: "block" } }}>
             <Typography variant="h6" fontWeight={700} mb={2}>
               Related Articles
