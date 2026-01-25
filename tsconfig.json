@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -42,7 +42,8 @@
     "src/app/api/auth/delete-account/route.js",
     "src/app/api/contact/route.js",
     "src/app/api/test-db/route.js",
-    "src/app/feed.xml/route.js"
+    "src/app/feed.xml/route.js",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
