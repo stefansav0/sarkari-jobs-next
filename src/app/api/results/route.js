@@ -3,14 +3,16 @@ import { connectDB } from "@/lib/db";
 import Result from "@/lib/models/Result";
 import slugify from "slugify";
 
-// Connect once globally
-connectDB();
+/* 🔴 Disable caching (App Router) */
+export const dynamic = "force-dynamic";
 
 /* -----------------------------------------
    🟩 POST — Create New Result
 ------------------------------------------*/
 export async function POST(req) {
   try {
+    await connectDB();
+
     const body = await req.json();
 
     const {
@@ -35,7 +37,7 @@ export async function POST(req) {
 
     const slug = slugify(title, { lower: true, strict: true });
 
-    const result = new Result({
+    const result = await Result.create({
       title,
       shortInfo,
       link,
@@ -47,10 +49,10 @@ export async function POST(req) {
       importantLinks,
       howToCheck,
       slug,
+
+      // ✅ Keep for future/manual ordering
       publishDate: new Date(),
     });
-
-    await result.save();
 
     return NextResponse.json(
       {
@@ -70,22 +72,26 @@ export async function POST(req) {
 }
 
 /* -----------------------------------------
-   🟦 GET — Paginated Results
+   🟦 GET — Paginated Results (FIXED SORT)
 ------------------------------------------*/
 export async function GET(req) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(req.url);
 
-    const page = parseInt(searchParams.get("page")) || 1;
+    const page = Number(searchParams.get("page")) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
 
-    const results = await Result.find()
-      .sort({ publishDate: -1 })
+    const results = await Result.find({})
+      // ✅ FIX: sort by createdAt (ALL documents have this)
+      .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-    const total = await Result.countDocuments();
+    const total = await Result.countDocuments({});
 
     return NextResponse.json(
       {

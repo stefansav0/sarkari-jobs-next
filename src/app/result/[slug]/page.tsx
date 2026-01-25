@@ -25,7 +25,7 @@ interface ResultType {
 }
 
 /* --------------------------------------
-   Fetch Single Result
+   Fetch Single Result (NO CACHE)
 --------------------------------------- */
 async function getResult(slug: string): Promise<ResultType | null> {
   const headersList = headers();
@@ -33,56 +33,49 @@ async function getResult(slug: string): Promise<ResultType | null> {
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
   const res = await fetch(`${protocol}://${host}/api/results/${slug}`, {
-    next: { revalidate: 60 },
+    cache: "no-store",
   });
 
   if (!res.ok) return null;
 
-  const data = await res.json();
-  return data && data.slug ? data : null;
+  return res.json();
 }
 
 /* --------------------------------------
-   Advanced SEO Metadata Generator
+   SEO Metadata (HIGH CTR FORMAT)
 --------------------------------------- */
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const result = await getResult(slug);
+  const result = await getResult(params.slug);
 
   if (!result) {
     return {
       title: "Result Not Found | Finderight",
-      description: "Requested examination result could not be found.",
-      robots: "noindex, nofollow",
+      robots: { index: false, follow: false },
     };
   }
 
-  const canonicalUrl = `https://finderight.com/result/${result.slug}`;
+  const canonical = `https://finderight.com/result/${result.slug}`;
 
   return {
-    title: `${result.title} | Finderight Result`,
+    title: `${result.title} – Download Result, Cut Off, Merit List`,
     description:
       result.shortInfo ||
-      `Check the latest exam result, official links, and important details for ${result.title}.`,
+      `Check ${result.title} result, official download link, cut off marks, merit list and full details on Finderight.`,
 
-    alternates: {
-      canonical: canonicalUrl,
-    },
+    alternates: { canonical },
 
     openGraph: {
-      title: result.title,
-      description:
-        result.shortInfo ||
-        `Get complete details for ${result.title} including links and important dates.`,
-      url: canonicalUrl,
       type: "article",
+      title: result.title,
+      description: result.shortInfo,
+      url: canonical,
       siteName: "Finderight",
-      publishedTime: result.postDate || undefined,
-      modifiedTime: result.postDate || undefined,
+      publishedTime: result.postDate,
+      modifiedTime: result.postDate,
       images: [
         {
           url: "https://finderight.com/og-result.png",
@@ -95,9 +88,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: result.title,
-      description:
-        result.shortInfo ||
-        `Latest result update for ${result.title}.`,
+      description: result.shortInfo,
       images: ["https://finderight.com/og-result.png"],
     },
 
@@ -109,20 +100,22 @@ export async function generateMetadata({
 }
 
 /* --------------------------------------
-   JSON-LD Schema — Article + Breadcrumb
+   JSON-LD (NEWS + FAQ + BREADCRUMB)
 --------------------------------------- */
 function JsonLdSchemas(result: ResultType) {
-  const canonicalUrl = `https://finderight.com/result/${result.slug}`;
+  const url = `https://finderight.com/result/${result.slug}`;
 
-  const articleSchema = {
+  const newsSchema = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "NewsArticle",
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
     headline: result.title,
-    description:
-      result.shortInfo ||
-      `Find latest result information for ${result.title}.`,
-    datePublished: result.postDate || undefined,
-    dateModified: result.postDate || undefined,
+    description: result.shortInfo,
+    datePublished: result.postDate,
+    dateModified: result.postDate,
     author: {
       "@type": "Organization",
       name: "Finderight",
@@ -135,8 +128,28 @@ function JsonLdSchemas(result: ResultType) {
         url: "https://finderight.com/logo.png",
       },
     },
-    url: canonicalUrl,
+    speakable: {
+      "@type": "SpeakableSpecification",
+      xpath: ["/html/head/title", "//h1"],
+    },
   };
+
+  const faqSchema = result.howToCheck
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: "How to check result?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: result.howToCheck,
+            },
+          },
+        ],
+      }
+    : null;
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -151,14 +164,14 @@ function JsonLdSchemas(result: ResultType) {
       {
         "@type": "ListItem",
         position: 2,
-        name: "Result",
+        name: "Results",
         item: "https://finderight.com/result",
       },
       {
         "@type": "ListItem",
         position: 3,
         name: result.title,
-        item: canonicalUrl,
+        item: url,
       },
     ],
   };
@@ -167,12 +180,18 @@ function JsonLdSchemas(result: ResultType) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(newsSchema) }}
       />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      )}
     </>
   );
 }
@@ -180,128 +199,74 @@ function JsonLdSchemas(result: ResultType) {
 /* --------------------------------------
    Page Component
 --------------------------------------- */
-const ResultDetailPage = async ({
+export default async function ResultDetailPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
-}) => {
-  const { slug } = await params;
-  const result = await getResult(slug);
+  params: { slug: string };
+}) {
+  const result = await getResult(params.slug);
 
   if (!result) {
-    return (
-      <div className="text-center text-red-500 mt-8">
-        Result not found or failed to load.
-      </div>
-    );
+    return <div className="text-center mt-10 text-red-600">Result not found.</div>;
   }
 
   return (
     <main className="max-w-3xl mx-auto p-4">
-      {/* SEO JSON-LD */}
       {JsonLdSchemas(result)}
 
-      <h1 className="text-3xl font-bold text-blue-700 mb-4">{result.title}</h1>
+      <h1 className="text-3xl font-bold text-blue-700 mb-4">
+        {result.title}
+      </h1>
 
-      <div className="space-y-2 text-gray-700 text-sm mb-6">
-        {result.conductedBy && (
-          <p>
-            <strong>Conducted By:</strong> {result.conductedBy}
-          </p>
-        )}
-
-        {result.examDate && (
-          <p className="flex items-center">
-            <CalendarDays className="w-4 h-4 mr-1" />
-            Exam Date: {result.examDate}
-          </p>
-        )}
-
-        {result.resultDate && (
-          <p className="flex items-center">
-            <CalendarDays className="w-4 h-4 mr-1" />
-            Result Date: {result.resultDate}
-          </p>
-        )}
-
-        {result.postDate && (
-          <p className="flex items-center">
-            <CalendarDays className="w-4 h-4 mr-1" />
-            Published On: {new Date(result.postDate).toLocaleDateString()}
-          </p>
-        )}
+      <div className="text-sm text-gray-700 space-y-2 mb-6">
+        {result.conductedBy && <p><strong>Conducted By:</strong> {result.conductedBy}</p>}
+        {result.examDate && <p>📅 Exam Date: {result.examDate}</p>}
+        {result.resultDate && <p>📢 Result Date: {result.resultDate}</p>}
       </div>
 
-      {/* Notice */}
       {result.shortInfo && (
-        <section className="border p-4 rounded mb-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-2 text-blue-600">Notice</h2>
+        <section className="bg-gray-50 border p-4 rounded mb-4">
+          <h2 className="font-semibold text-blue-600 mb-2">Latest Update</h2>
           <p>{result.shortInfo}</p>
         </section>
       )}
 
-      {/* How to Check */}
       {result.howToCheck && (
-        <section className="border p-4 rounded mb-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-2 text-blue-600">
+        <section className="bg-white border p-4 rounded mb-4">
+          <h2 className="font-semibold text-blue-600 mb-2">
             How to Check Result
           </h2>
           <p>{result.howToCheck}</p>
         </section>
       )}
 
-      {/* Important Links */}
-      {Array.isArray(result.importantLinks) &&
-        result.importantLinks.length > 0 && (
-          <section className="border p-4 rounded mb-4 bg-white">
-            <h2 className="text-lg font-semibold mb-2 text-blue-600">
-              Important Links
-            </h2>
-            <ul className="space-y-2">
-              {result.importantLinks.map((link, idx) => (
-                <li key={idx}>
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center"
-                  >
-                    {link.label} <ExternalLink className="w-4 h-4 ml-1" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+      {result.importantLinks?.length && (
+        <section className="border p-4 rounded">
+          <h2 className="font-semibold text-blue-600 mb-2">
+            Important Links
+          </h2>
+          <ul className="space-y-2">
+            {result.importantLinks.map((l, i) => (
+              <li key={i}>
+                <a
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 flex items-center"
+                >
+                  {l.label} <ExternalLink className="w-4 h-4 ml-1" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-      {/* Back */}
-      <div className="text-center mt-6">
-        <Link
-          href="/result"
-          className="text-blue-600 hover:underline font-medium"
-        >
+      <div className="mt-8 text-center">
+        <Link href="/result" className="text-blue-600 hover:underline">
           ← Back to Results
         </Link>
       </div>
-
-      <div className="text-center mt-8 text-sm text-gray-700">
-        <p className="font-semibold text-lg mb-2 text-blue-600">
-          Welcome to Finderight!
-        </p>
-        <p className="mb-4">
-          Get updates on Jobs, Results, Admissions, Answer Keys, News & more.
-          Bookmark Finderight and stay updated.
-        </p>
-
-        <hr className="my-4" />
-
-        <p className="text-red-600 text-xs">
-          <strong>Disclaimer:</strong> All information is for educational
-          purposes only. Verify info with official sources.
-        </p>
-      </div>
     </main>
   );
-};
-
-export default ResultDetailPage;
+}

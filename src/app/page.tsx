@@ -12,6 +12,7 @@ const homeCategories = [
   { name: "Answer Key", path: "/answer-key" },
   { name: "Admission", path: "/admission" },
   { name: "Documents", path: "/documents" },
+  { name: "Study News", path: "study-news"},
 ];
 
 // FAQ data
@@ -40,6 +41,7 @@ const endpointToRouteMap: Record<string, string> = {
   "/api/answer-keys": "/answer-key",
   "/api/admissions": "/admission",
   "/api/documents": "/documents",
+  "/api/study-news": "/study-news",
 };
 
 interface TableSectionProps {
@@ -211,6 +213,7 @@ const Home = () => {
         <TableSection title="Latest Admit Cards" endpoint="/api/admit-cards" />
         <TableSection title="Latest Answer Keys" endpoint="/api/answer-keys" />
         <TableSection title="Latest Admissions" endpoint="/api/admissions" />
+        <TableSection title="Letest Study News" endpoint="/api/study-news" />
         <TableSection title="Latest Documents" endpoint="/api/documents" directLink />
       </section>
 
