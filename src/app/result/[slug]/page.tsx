@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { headers } from "next/headers";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 /* --------------------------------------
    Types
@@ -32,25 +32,31 @@ interface ResultType {
 async function getResult(slug: string): Promise<ResultType | null> {
   const headersList = headers();
   const host = (await headersList).get("host");
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
-  const res = await fetch(`${protocol}://${host}/api/results/${slug}`, {
-    cache: "no-store",
-  });
+  if (!host) return null;
+
+  const protocol =
+    process.env.NODE_ENV === "development" ? "http" : "https";
+
+  const res = await fetch(
+    `${protocol}://${host}/api/results/${slug}`,
+    { cache: "no-store" }
+  );
 
   if (!res.ok) return null;
   return res.json();
 }
 
 /* --------------------------------------
-   SEO Metadata (HIGH CTR FORMAT)
+   SEO Metadata (FIXED ✅)
 --------------------------------------- */
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const result = await getResult(params.slug);
+  const { slug } = await params; // ✅ REQUIRED IN NEXT 15
+  const result = await getResult(slug);
 
   if (!result) {
     return {
@@ -65,7 +71,7 @@ export async function generateMetadata({
     title: `${result.title} – Download Result, Cut Off, Merit List`,
     description:
       result.shortInfo ||
-      `Check ${result.title} result, official download link, cut off marks, merit list and full details on Finderight.`,
+      `Check ${result.title} result, cut off marks, merit list and full details on Finderight.`,
 
     alternates: { canonical },
 
@@ -101,7 +107,7 @@ export async function generateMetadata({
 }
 
 /* --------------------------------------
-   JSON-LD (NEWS + FAQ + BREADCRUMB)
+   JSON-LD Schemas
 --------------------------------------- */
 function JsonLdSchemas(result: ResultType) {
   const url = `https://finderight.com/result/${result.slug}`;
@@ -109,18 +115,12 @@ function JsonLdSchemas(result: ResultType) {
   const newsSchema = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": url,
-    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
     headline: result.title,
     description: result.shortInfo,
     datePublished: result.postDate,
     dateModified: result.postDate,
-    author: {
-      "@type": "Organization",
-      name: "Finderight",
-    },
+    author: { "@type": "Organization", name: "Finderight" },
     publisher: {
       "@type": "Organization",
       name: "Finderight",
@@ -194,14 +194,15 @@ function JsonLdSchemas(result: ResultType) {
 }
 
 /* --------------------------------------
-   Page Component
+   Page Component (FIXED ✅)
 --------------------------------------- */
 export default async function ResultDetailPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const result = await getResult(params.slug);
+  const { slug } = await params; // ✅ REQUIRED
+  const result = await getResult(slug);
 
   if (!result) {
     return (
