@@ -5,15 +5,16 @@ import Job from "@/lib/models/Job";
 // =======================
 // GET /api/jobs/[slug]
 // =======================
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
     await connectDB();
 
-    const { slug } = params;
+    // ✅ FIX: params is async in Next.js 15
+    const { slug } = await context.params;
 
     if (!slug) {
       return NextResponse.json(
-        { message: "Slug is required" },
+        { success: false, message: "Slug is required" },
         { status: 400 }
       );
     }
@@ -22,19 +23,26 @@ export async function GET(req, { params }) {
 
     if (!job) {
       return NextResponse.json(
-        { message: "Job not found" },
+        { success: false, message: "Job not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      job,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        job,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("❌ Error fetching job:", error);
     return NextResponse.json(
-      { message: "Server Error", error: error.message },
+      {
+        success: false,
+        message: "Server Error",
+        error: error.message,
+      },
       { status: 500 }
     );
   }
@@ -43,36 +51,44 @@ export async function GET(req, { params }) {
 // =======================
 // DELETE /api/jobs/[slug]
 // =======================
-export async function DELETE(req, { params }) {
+export async function DELETE(req, context) {
   try {
     await connectDB();
 
-    const { slug } = params;
+    // ✅ FIX: params is async in Next.js 15
+    const { slug } = await context.params;
 
     if (!slug) {
       return NextResponse.json(
-        { message: "Slug is required" },
+        { success: false, message: "Slug is required" },
         { status: 400 }
       );
     }
 
-    const deleted = await Job.findOneAndDelete({ slug });
+    const deletedJob = await Job.findOneAndDelete({ slug });
 
-    if (!deleted) {
+    if (!deletedJob) {
       return NextResponse.json(
-        { message: "Job not found" },
+        { success: false, message: "Job not found" },
         { status: 404 }
       );
     }
 
     return NextResponse.json(
-      { success: true, message: "Job deleted successfully" },
+      {
+        success: true,
+        message: "Job deleted successfully",
+      },
       { status: 200 }
     );
   } catch (error) {
     console.error("❌ Error deleting job:", error);
     return NextResponse.json(
-      { message: "Server Error", error: error.message },
+      {
+        success: false,
+        message: "Server Error",
+        error: error.message,
+      },
       { status: 500 }
     );
   }

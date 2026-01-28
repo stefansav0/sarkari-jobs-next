@@ -18,7 +18,18 @@ interface NewsItem {
 }
 
 /* --------------------------------
-   Helper: extract array safely (NO any)
+   Helper: strip HTML safely
+-------------------------------- */
+function stripHtml(html?: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* --------------------------------
+   Helper: extract array safely
 -------------------------------- */
 function extractArray(input: unknown): NewsItem[] {
   if (Array.isArray(input)) {
@@ -83,49 +94,54 @@ export default async function StudyNewsList() {
 
       {/* ---------- NEWS GRID ---------- */}
       <section className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {news.map((item) => (
-          <Link
-            key={item._id || item.slug}
-            href={`/study-news/${item.slug}`}
-            className="group bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition duration-300 flex flex-col"
-          >
-            {/* Image */}
-            <div className="relative w-full h-52 bg-gray-100 overflow-hidden">
-              <Image
-                src={item.coverImage || "/default-cover.jpg"}
-                alt={item.title}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-            </div>
+        {news.map((item) => {
+          const cleanText =
+            stripHtml(item.excerpt) ||
+            stripHtml(item.description) ||
+            "Read the full article for detailed information and official updates.";
 
-            {/* Content */}
-            <div className="p-5 flex flex-col flex-1">
-              <h2 className="text-lg font-semibold text-gray-900 leading-snug group-hover:text-blue-700 line-clamp-2">
-                {item.title}
-              </h2>
-
-              <p className="mt-3 text-sm text-gray-700 leading-relaxed line-clamp-3">
-                {item.excerpt ||
-                  item.description ||
-                  "Read the full article for detailed information and official updates."}
-              </p>
-
-              <div className="mt-auto pt-4 flex items-center justify-between">
-                <span className="text-blue-600 text-sm font-medium group-hover:underline">
-                  Read full story →
-                </span>
-
-                {item.createdAt && (
-                  <span className="text-xs text-gray-500">
-                    {new Date(item.createdAt).toLocaleDateString("en-IN")}
-                  </span>
-                )}
+          return (
+            <Link
+              key={item._id || item.slug}
+              href={`/study-news/${item.slug}`}
+              className="group bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition duration-300 flex flex-col"
+            >
+              {/* Image */}
+              <div className="relative w-full h-52 bg-gray-100 overflow-hidden">
+                <Image
+                  src={item.coverImage || "/default-cover.jpg"}
+                  alt={item.title}
+                  fill
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
               </div>
-            </div>
-          </Link>
-        ))}
+
+              {/* Content */}
+              <div className="p-5 flex flex-col flex-1">
+                <h2 className="text-lg font-semibold text-gray-900 leading-snug group-hover:text-blue-700 line-clamp-2">
+                  {item.title}
+                </h2>
+
+                <p className="mt-3 text-sm text-gray-700 leading-relaxed line-clamp-3">
+                  {cleanText}
+                </p>
+
+                <div className="mt-auto pt-4 flex items-center justify-between">
+                  <span className="text-blue-600 text-sm font-medium group-hover:underline">
+                    Read full story →
+                  </span>
+
+                  {item.createdAt && (
+                    <span className="text-xs text-gray-500">
+                      {new Date(item.createdAt).toLocaleDateString("en-IN")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </section>
     </main>
   );
