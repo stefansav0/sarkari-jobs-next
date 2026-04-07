@@ -43,4 +43,4 @@ ResultSchema.pre("save", function (next) {
 // Prevent model overwrite upon hot reload in dev
 const Result = mongoose.models.Result || mongoose.model("Result", ResultSchema);
 
-export default Result;
+export default Result;  
