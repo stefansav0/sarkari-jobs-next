@@ -12,9 +12,15 @@ interface ImportantDates {
     admitCard?: string;
 }
 
+interface LinkItem {
+    label?: string;
+    url?: string;
+}
+
 interface ImportantLinks {
-    applyOnline?: string;
-    downloadNotification?: string;
+    // 🔥 FIX: Accept both arrays (new data) and strings (old legacy data)
+    applyOnline?: LinkItem[] | string;
+    downloadNotification?: LinkItem[] | string;
     officialWebsite?: string;
 }
 
@@ -22,11 +28,11 @@ export interface JobType {
     slug: string;
     title: string;
     department?: string;
-    eligibility?: string;       // Supports HTML
-    ageLimit?: string;          // Updated to support HTML
+    eligibility?: string;       
+    ageLimit?: string;          
     lastDate?: string;
-    applicationFee?: string;    // HTML string
-    vacancy?: string;           // HTML string
+    applicationFee?: string;    
+    vacancy?: string;           
     description?: string;
     importantDates?: ImportantDates;
     importantLinks?: ImportantLinks;
@@ -163,14 +169,11 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                 </table>
             </section>
 
-            {/* AGE LIMIT (Now Rendering HTML) */}
+            {/* AGE LIMIT */}
             {job.ageLimit && (
                 <section className="mb-8 border rounded-lg p-4">
                     <h2 className="text-xl md:text-2xl font-bold text-green-700 mb-2">Age Limit</h2>
-                    <div 
-                        className="leading-relaxed prose prose-sm max-w-none" 
-                        dangerouslySetInnerHTML={{ __html: decodeHtml(job.ageLimit) }} 
-                    />
+                    <div className="leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: decodeHtml(job.ageLimit) }} />
                 </section>
             )}
 
@@ -182,14 +185,11 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                 </section>
             )}
 
-            {/* ELIGIBILITY (Now Rendering HTML) */}
+            {/* ELIGIBILITY */}
             {job.eligibility && (
                 <section className="mb-8 border rounded-lg p-4">
                     <h2 className="text-xl md:text-2xl font-bold text-green-700 mb-2">Eligibility Criteria</h2>
-                    <div 
-                        className="leading-relaxed prose prose-sm max-w-none" 
-                        dangerouslySetInnerHTML={{ __html: decodeHtml(job.eligibility) }} 
-                    />
+                    <div className="leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: decodeHtml(job.eligibility) }} />
                 </section>
             )}
 
@@ -198,27 +198,62 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                 <h2 className="text-xl md:text-2xl font-bold text-center text-pink-700 py-3 border-b">Important Links</h2>
                 <table className="w-full text-sm md:text-base">
                     <tbody>
+                        {/* 🔥 FIX: Handle Multiple Apply Online Links Safely (Array vs String check) */}
                         {job.importantLinks?.applyOnline && (
-                            <tr className="border-b">
-                                <td className="p-3 font-bold text-pink-700">Apply Online</td>
-                                <td className="p-3 text-right">
-                                    <a href={job.importantLinks.applyOnline} target="_blank" className="text-blue-700 font-semibold underline">Click Here</a>
-                                </td>
-                            </tr>
+                            Array.isArray(job.importantLinks.applyOnline) ? (
+                                job.importantLinks.applyOnline.map((link, index) => (
+                                    link.url && (
+                                        <tr className="border-b" key={`apply-${index}`}>
+                                            <td className="p-3 font-bold text-pink-700">{link.label || 'Apply Online'}</td>
+                                            <td className="p-3 text-right">
+                                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-semibold underline hover:text-blue-900">Click Here</a>
+                                            </td>
+                                        </tr>
+                                    )
+                                ))
+                            ) : (
+                                typeof job.importantLinks.applyOnline === 'string' && (
+                                    <tr className="border-b">
+                                        <td className="p-3 font-bold text-pink-700">Apply Online</td>
+                                        <td className="p-3 text-right">
+                                            <a href={job.importantLinks.applyOnline} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-semibold underline hover:text-blue-900">Click Here</a>
+                                        </td>
+                                    </tr>
+                                )
+                            )
                         )}
+
+                        {/* 🔥 FIX: Handle Multiple Notification Downloads Safely (Array vs String check) */}
                         {job.importantLinks?.downloadNotification && (
-                            <tr className="border-b">
-                                <td className="p-3 font-bold text-pink-700">Download Notification</td>
-                                <td className="p-3 text-right">
-                                    <a href={job.importantLinks.downloadNotification} target="_blank" className="text-blue-700 font-semibold underline">Click Here</a>
-                                </td>
-                            </tr>
+                            Array.isArray(job.importantLinks.downloadNotification) ? (
+                                job.importantLinks.downloadNotification.map((link, index) => (
+                                    link.url && (
+                                        <tr className="border-b" key={`notice-${index}`}>
+                                            <td className="p-3 font-bold text-pink-700">{link.label || 'Download Notification'}</td>
+                                            <td className="p-3 text-right">
+                                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-semibold underline hover:text-blue-900">Click Here</a>
+                                            </td>
+                                        </tr>
+                                    )
+                                ))
+                            ) : (
+                                typeof job.importantLinks.downloadNotification === 'string' && (
+                                    <tr className="border-b">
+                                        <td className="p-3 font-bold text-pink-700">Download Notification</td>
+                                        <td className="p-3 text-right">
+                                            <a href={job.importantLinks.downloadNotification} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-semibold underline hover:text-blue-900">Click Here</a>
+                                        </td>
+                                    </tr>
+                                )
+                            )
                         )}
+
+                        {/* Official Website */}
                         {job.importantLinks?.officialWebsite && (
                             <tr>
                                 <td className="p-3 font-bold text-pink-700">Official Website</td>
                                 <td className="p-3 text-right">
-                                    <a href={job.importantLinks.officialWebsite} target="_blank" className="text-blue-700 font-semibold underline">Click Here</a>
+                                    <a href={job.importantLinks.officialWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-semibold underline hover:text-blue-900">Click Here</a>
                                 </td>
                             </tr>
                         )}

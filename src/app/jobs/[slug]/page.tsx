@@ -2,7 +2,15 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import JobDetailClient from "./JobDetailClient";
 
-interface JobType {
+/* -----------------------------
+   TYPES (Updated for arrays)
+------------------------------ */
+interface LinkItem {
+  label?: string;
+  url?: string;
+}
+
+export interface JobType {
   slug: string;
   title: string;
   department?: string;
@@ -20,10 +28,13 @@ interface JobType {
     admitCard?: string;
   };
   importantLinks?: {
-    applyOnline?: string;
-    downloadNotification?: string;
+    // Updated to support arrays of objects
+    applyOnline?: LinkItem[];
+    downloadNotification?: LinkItem[];
     officialWebsite?: string;
   };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /* -----------------------------

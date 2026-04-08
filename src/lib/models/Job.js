@@ -11,16 +11,22 @@ const JobSchema = new mongoose.Schema(
     category: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
     slug: { type: String, lowercase: true, unique: true, trim: true },
+    
+    // Made optional since you are now using importantLinks.applyOnline
     applyLink: {
       type: String,
-      required: true,
+      required: false, 
       trim: true,
       validate: {
-        validator: (v) =>
-          /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/.test(v),
+        validator: (v) => {
+          // If empty, pass validation. If filled, check URL format.
+          if (!v) return true; 
+          return /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/.test(v);
+        },
         message: "Invalid URL format for apply link"
       }
     },
+    
     lastDate: { type: Date, required: true },
     status: {
       type: String,
@@ -38,9 +44,21 @@ const JobSchema = new mongoose.Schema(
       examDate: { type: String, trim: true },
       admitCard: { type: String, trim: true }
     },
+    
+    // Updated to support multiple links and uploaded file URLs
     importantLinks: {
-      applyOnline: { type: String, trim: true },
-      downloadNotification: { type: String, trim: true },
+      applyOnline: [
+        {
+          label: { type: String, trim: true },
+          url: { type: String, trim: true }
+        }
+      ],
+      downloadNotification: [
+        {
+          label: { type: String, trim: true },
+          url: { type: String, trim: true }
+        }
+      ],
       officialWebsite: { type: String, trim: true }
     }
   },
