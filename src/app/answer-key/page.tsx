@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback, Key } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ExternalLink, ArrowUp } from "lucide-react";
 
@@ -11,7 +11,7 @@ interface ImportantLinks {
 }
 
 interface AnswerKey {
-  _id: Key | null | undefined;
+  _id: string; // Changed from Key | null | undefined to string
   slug: string;
   title: string;
   conductedBy?: string;
@@ -35,8 +35,6 @@ function AnswerKeyList() {
   const [showTopButton, setShowTopButton] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
-  // Removed unused API_BASE_URL
-
   const fetchAnswerKeys = async (page: number) => {
     setLoading(true);
     try {
@@ -49,9 +47,9 @@ function AnswerKeyList() {
           ...prev,
           ...(Array.isArray(data.answerKeys) ? data.answerKeys : []),
         ];
-        // Remove duplicates by _id
+        // Remove duplicates by _id safely converting to string
         const unique = Array.from(
-          new Map(combined.map((item: AnswerKey) => [item._id, item])).values()
+          new Map(combined.map((item: AnswerKey) => [String(item._id), item])).values()
         );
         return unique;
       });
@@ -108,7 +106,8 @@ function AnswerKeyList() {
             const cardContent = (
               <div
                 className="p-4 border rounded-2xl shadow hover:shadow-lg transition bg-white"
-                key={item._id}
+                // Safely convert _id to string for the React key
+                key={String(item._id)}
               >
                 <Link
                   href={`/answer-key/${item.slug}`}
@@ -129,7 +128,8 @@ function AnswerKeyList() {
             );
 
             return answerKeys.length === index + 1 ? (
-              <div ref={lastCardRef} key={`${item._id}-last`}>
+              // Safely convert _id to string inside the template literal
+              <div ref={lastCardRef} key={`${String(item._id)}-last`}>
                 {cardContent}
               </div>
             ) : (
