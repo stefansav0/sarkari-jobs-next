@@ -35,11 +35,14 @@ export default function LatestJobs() {
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch("/api/jobs/latest", { cache: "no-store" });
+                // 🔥 FIX 1: Point to the correct endpoint
+                const res = await fetch("/api/jobs", { cache: "no-store" });
                 if (!res.ok) throw new Error("Failed to load jobs");
 
                 const data = await res.json();
-                if (data.success && Array.isArray(data.jobs)) {
+                
+                // 🔥 FIX 2: Check for data.jobs directly (since your GET route doesn't send data.success)
+                if (data.jobs && Array.isArray(data.jobs)) {
                     setJobListings(data.jobs);
                 } else {
                     throw new Error("Invalid response format");
@@ -56,7 +59,7 @@ export default function LatestJobs() {
     const showMore = () => setVisibleCount((p) => p + 6);
 
     /* ------------------------
-       JSON-LD for SEO
+        JSON-LD for SEO
     ------------------------ */
     const jobSchema = {
         "@context": "https://schema.org",
