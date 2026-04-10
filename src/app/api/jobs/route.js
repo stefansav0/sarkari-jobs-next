@@ -3,8 +3,7 @@ import { connectDB } from "@/lib/db";
 import Job from "@/lib/models/Job";
 import { sendToAllUsers } from "@/lib/sendEmail";
 import slugify from "slugify";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob"; // ✅ Added Vercel Blob import
 
 // GET /api/jobs
 export async function GET() {
@@ -60,36 +59,31 @@ export async function POST(req) {
     const parsedNotifications = JSON.parse(formData.get("downloadNotification") || "[]");
     const finalDownloadNotifications = [];
 
-    // 4. Handle File Uploads for Notifications
-    // Create the uploads directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true }).catch(console.error);
-
+    // 4. Handle File Uploads for Notifications using Vercel Blob
     for (const item of parsedNotifications) {
       if (item.isUploadedFile && item.fileKey) {
         // Retrieve the actual file from FormData using the fileKey
         const file = formData.get(item.fileKey);
         
         if (file && typeof file === "object") {
-          const bytes = await file.arrayBuffer();
-          const buffer = Buffer.from(bytes);
           
-          // Create a unique filename to prevent overwriting
+          // Create a clean, unique filename to prevent overwriting
           const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          const filename = `${uniqueSuffix}-${file.name.replace(/\s+/g, "_")}`;
-          const filepath = path.join(uploadDir, filename);
+          const safeFilename = `${uniqueSuffix}-${file.name.replace(/\s+/g, "_")}`;
 
-          // Save to public/uploads
-          // WARNING: If deploying to Vercel, replace this with AWS S3/Vercel Blob upload logic
-          await writeFile(filepath, buffer);
+          // ✅ Upload directly to Vercel Blob
+          const blob = await put(`notifications/${safeFilename}`, file, {
+            access: 'public',
+          });
 
+          // Save the permanent public URL returned by Vercel Blob
           finalDownloadNotifications.push({
             label: item.label,
-            url: `/uploads/${filename}` // Public URL for the file
+            url: blob.url 
           });
         }
       } else {
-        // Standard URL link
+        // Standard URL link (No file uploaded)
         finalDownloadNotifications.push({
           label: item.label,
           url: item.url

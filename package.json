@@ -27,6 +27,8 @@
     "@tiptap/extension-underline": "^3.7.0",
     "@tiptap/react": "^3.7.0",
     "@tiptap/starter-kit": "^3.7.0",
+    "@types/node": "^20.19.39",
+    "@vercel/blob": "^2.3.3",
     "@vercel/speed-insights": "^1.2.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
@@ -41,14 +43,12 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
-    "@types/node": "^20.19.39",
-    "typescript": "^5.9.3",
-    "slugify": "^1.6.6"
+    "slugify": "^1.6.6",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/jsonwebtoken": "^9.0.10",
-    
     "@types/nodemailer": "^7.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -56,6 +56,5 @@
     "eslint-config-next": "15.5.5",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2"
-    
   }
 }
