@@ -15,17 +15,16 @@ export async function POST(req) {
 
     const body = await req.json();
 
+    // ✅ Extracted EXACTLY what the new AdminAddResult frontend form sends
     const {
       title,
-      shortInfo,
-      link,
-      date,
-      postDate,
+      conductedBy,
       examDate,
       resultDate,
-      conductedBy,
-      importantLinks,
+      postDate,
+      shortInfo,
       howToCheck,
+      importantLinks,
     } = body;
 
     if (!title) {
@@ -39,19 +38,14 @@ export async function POST(req) {
 
     const result = await Result.create({
       title,
-      shortInfo,
-      link,
-      date,
-      postDate,
+      conductedBy,
       examDate,
       resultDate,
-      conductedBy,
-      importantLinks,
+      postDate,
+      shortInfo,
       howToCheck,
-      slug,
-
-      // ✅ Keep for future/manual ordering
-      publishDate: new Date(),
+      importantLinks,
+      slug, // Mongoose also has a pre-save hook for this, but explicitly passing it is perfectly safe
     });
 
     return NextResponse.json(
