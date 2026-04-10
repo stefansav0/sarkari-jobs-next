@@ -42,23 +42,161 @@ const endpointToRouteMap: Record<string, string> = {
   "/api/admissions": "/admission",
   "/api/documents": "/documents",
   "/api/study-news": "/study-news",
+  "/api/jobs": "/jobs", 
 };
 
 interface TableSectionProps {
   title: string;
   endpoint: string;
-  directLink?: boolean; // for documents with direct URLs
+  directLink?: boolean; 
 }
 
-// Define the shape of items returned by APIs
 interface ApiItem {
   title?: string;
   name?: string;
   slug?: string;
   link?: string;
-  [key: string]: unknown; // catch-all for extra fields
+  [key: string]: unknown;
 }
 
+const parseApiResponse = (result: Record<string, unknown>): ApiItem[] => {
+  const findFirstArray = (obj: Record<string, unknown>): ApiItem[] | null => {
+    for (const key in obj) {
+      if (Array.isArray(obj[key])) return obj[key] as ApiItem[];
+    }
+    return null;
+  };
+
+  if (Array.isArray(result)) return result as ApiItem[];
+  if (Array.isArray(result.data)) return result.data as ApiItem[];
+  if (Array.isArray(result.results)) return result.results as ApiItem[];
+  
+  const arr = findFirstArray(result);
+  return arr ? arr : [];
+};
+
+/* -------------------------------------------------------------------------- */
+/* NEW & IMPROVED: SEAMLESS LIVE UPDATES TICKER                               */
+/* -------------------------------------------------------------------------- */
+interface TickerUpdate {
+  title: string;
+  link: string;
+  label: string;
+}
+
+const TopUpdatesTicker = () => {
+  const [updates, setUpdates] = useState<TickerUpdate[]>([]);
+
+  useEffect(() => {
+    const fetchTopUpdates = async () => {
+      const endpoints = [
+        { url: "/api/jobs", label: "New Job" },
+        { url: "/api/results", label: "Result" },
+        { url: "/api/admit-cards", label: "Admit Card" },
+        { url: "/api/answer-keys", label: "Answer Key" },
+        { url: "/api/admissions", label: "Admission" },
+        { url: "/api/study-news", label: "News" },
+      ];
+
+      const promises = endpoints.map(async (ep) => {
+        try {
+          const res = await fetch(ep.url, { cache: "no-store" });
+          if (!res.ok) return null;
+          
+          const result = (await res.json()) as Record<string, unknown>;
+          const parsedData = parseApiResponse(result);
+
+          if (parsedData.length > 0) {
+            const item = parsedData[0]; 
+            
+            let itemLink = item.link || "";
+            if (!itemLink) {
+              const slug = item.slug || (item.title || item.name || "update").toString().toLowerCase().replace(/\s+/g, "-");
+              const basePath = endpointToRouteMap[ep.url];
+              itemLink = `${basePath}/${slug}`;
+            }
+
+            return {
+              title: item.title || item.name || "Latest Update",
+              link: itemLink,
+              label: ep.label,
+            };
+          }
+        } catch (e) {
+          return null; 
+        }
+        return null;
+      });
+
+      const results = await Promise.all(promises);
+      setUpdates(results.filter((r): r is TickerUpdate => r !== null));
+    };
+
+    fetchTopUpdates();
+  }, []);
+
+  if (updates.length === 0) return null; 
+
+  // Duplicate content heavily to ensure a mathematically perfect, seamless infinite loop
+  const marqueeContent = [...updates, ...updates, ...updates, ...updates];
+
+  return (
+    <div className="relative w-full max-w-7xl mx-auto mb-8 h-14 md:h-16 flex items-center bg-white rounded-full shadow-[0_4px_25px_-5px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden">
+      
+      {/* 1. Static "Live Updates" Badge on the left */}
+      <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center px-4 md:px-6 bg-gradient-to-r from-red-600 to-rose-500 text-white font-extrabold text-xs md:text-sm tracking-wider uppercase shadow-[4px_0_15px_rgba(225,29,72,0.4)]">
+        {/* Pulsing indicator dot */}
+        <span className="relative flex h-2.5 w-2.5 md:h-3 md:w-3 mr-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 md:h-3 md:w-3 bg-white"></span>
+        </span>
+        Notification
+      </div>
+
+      {/* 2. White gradient fade masks to soften the scrolling text entering/exiting */}
+      <div className="absolute left-[135px] md:left-[175px] top-0 bottom-0 w-12 md:w-20 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+      <div className="absolute right-0 top-0 bottom-0 w-12 md:w-20 bg-gradient-to-l from-white to-transparent z-10 rounded-r-full pointer-events-none"></div>
+
+      {/* 3. Inline Styles for Seamless Marquee Animation */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes seamless-marquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); } 
+        }
+        .animate-seamless-marquee {
+          display: flex;
+          width: max-content;
+          animation: seamless-marquee 40s linear infinite;
+        }
+        .animate-seamless-marquee:hover {
+          animation-play-state: paused;
+        }
+      `}} />
+      
+      {/* 4. Scrolling Content Container */}
+      <div className="flex w-full overflow-hidden items-center h-full pl-[150px] md:pl-[200px]">
+        <div className="animate-seamless-marquee items-center gap-8 md:gap-14 py-2 cursor-pointer">
+          {marqueeContent.map((u, i) => (
+            <Link key={i} href={u.link} className="group flex items-center gap-3 whitespace-nowrap">
+              <span className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] md:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                {u.label}
+              </span>
+              <span className="text-sm md:text-base font-semibold text-gray-700 group-hover:text-red-600 transition-colors duration-300">
+                {u.title}
+              </span>
+              {/* Bullet separator */}
+              <span className="text-gray-300 ml-4 hidden md:inline-block">•</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/* TABLE SECTION                                */
+/* -------------------------------------------------------------------------- */
 const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps) => {
   const [data, setData] = useState<ApiItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,23 +211,7 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const result = (await res.json()) as Record<string, unknown>;
 
-        const findFirstArray = (obj: Record<string, unknown>): ApiItem[] | null => {
-          for (const key in obj) {
-            if (Array.isArray(obj[key])) return obj[key] as ApiItem[];
-          }
-          return null;
-        };
-
-        let parsedData: ApiItem[] = [];
-        if (Array.isArray(result)) parsedData = result as ApiItem[];
-        else if (Array.isArray(result.data)) parsedData = result.data as ApiItem[];
-        else if (Array.isArray(result.results)) parsedData = result.results as ApiItem[];
-        else {
-          const arr = findFirstArray(result);
-          if (arr) parsedData = arr;
-        }
-
-        setData(parsedData);
+        setData(parseApiResponse(result));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Error fetching data";
         setError(message);
@@ -163,6 +285,9 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
   );
 };
 
+/* -------------------------------------------------------------------------- */
+/* HOME PAGE                                   */
+/* -------------------------------------------------------------------------- */
 const Home = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const toggleFAQ = (index: number) => {
@@ -171,6 +296,10 @@ const Home = () => {
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative">
+      
+      {/* 🚀 Sleek Top Updates Marquee Ticker */}
+      <TopUpdatesTicker />
+
       {/* Hero Section */}
       <section className="text-center py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-xl shadow-lg">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight mb-3 sm:mb-4">
