@@ -3,14 +3,17 @@ import { connectDB } from "@/lib/db";
 import AdmitCard from "@/lib/models/AdmitCard";
 import slugify from "slugify";
 
-// Connect to DB once
-connectDB();
+// 🔴 Disable aggressive caching in Next.js App Router
+export const dynamic = "force-dynamic";
 
 /* -----------------------------------------
    🟦 GET — List Admit Cards (Paginated)
 ------------------------------------------*/
 export async function GET(req) {
   try {
+    // ✅ Always await DB connection INSIDE the function for Vercel/Serverless
+    await connectDB();
+
     const { searchParams } = new URL(req.url);
 
     const page = parseInt(searchParams.get("page")) || 1;
@@ -18,9 +21,10 @@ export async function GET(req) {
     const skip = (page - 1) * limit;
 
     const admitCards = await AdmitCard.find()
-      .sort({ publishDate: -1 })
+      .sort({ createdAt: -1 }) // Sorted by newest first
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const total = await AdmitCard.countDocuments();
 
@@ -47,27 +51,52 @@ export async function GET(req) {
 ------------------------------------------*/
 export async function POST(req) {
   try {
+    await connectDB();
+
     const body = await req.json();
 
-    if (!body.title) {
+    // ✅ Explicitly extract fields to ensure clean data matching the new frontend
+    const {
+      title,
+      conductedby,
+      examDate,
+      applicationBegin,
+      lastDateApply,
+      admitCard,
+      publishDate,
+      description,
+      howToDownload,
+      importantLinks,
+    } = body;
+
+    if (!title) {
       return NextResponse.json(
         { message: "❌ Title is required" },
         { status: 400 }
       );
     }
 
-    const data = {
-      ...body,
-      slug: slugify(body.title, { lower: true, strict: true }),
-    };
+    const slug = slugify(title, { lower: true, strict: true });
 
-    const admitCard = new AdmitCard(data);
-    await admitCard.save();
+    // Mongoose handles the validation and saving
+    const newAdmitCard = await AdmitCard.create({
+      title,
+      slug,
+      conductedby,
+      examDate,
+      applicationBegin,
+      lastDateApply,
+      admitCard,
+      publishDate,
+      description,
+      howToDownload,
+      importantLinks,
+    });
 
     return NextResponse.json(
       {
         message: "✅ Admit Card created successfully",
-        admitCard,
+        admitCard: newAdmitCard,
       },
       { status: 201 }
     );
@@ -86,14 +115,14 @@ export async function POST(req) {
 ------------------------------------------*/
 export function PUT() {
   return NextResponse.json(
-    { message: "PUT not allowed" },
+    { message: "PUT not allowed on base route. Use /[slug] endpoint." },
     { status: 405 }
   );
 }
 
 export function DELETE() {
   return NextResponse.json(
-    { message: "DELETE not allowed" },
+    { message: "DELETE not allowed on base route. Use /[slug] endpoint." },
     { status: 405 }
   );
 }
