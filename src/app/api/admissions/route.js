@@ -3,14 +3,17 @@ import { connectDB } from "@/lib/db";
 import Admission from "@/lib/models/Admission";
 import slugify from "slugify";
 
-// Connect once on server
-connectDB();
+// 🔴 Disable aggressive caching in Next.js App Router for the admin panel
+export const dynamic = "force-dynamic";
 
 /* -----------------------------------------
    🟦 GET — Fetch Admissions (Paginated)
 ------------------------------------------*/
 export async function GET(req) {
   try {
+    // ✅ Always await DB connection INSIDE the function for Vercel/Serverless
+    await connectDB();
+
     const { searchParams } = new URL(req.url);
 
     const page = parseInt(searchParams.get("page")) || 1;
@@ -20,7 +23,8 @@ export async function GET(req) {
     const admissions = await Admission.find()
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // .lean() makes it faster by returning plain JSON objects
 
     const total = await Admission.countDocuments();
 
@@ -47,6 +51,9 @@ export async function GET(req) {
 ------------------------------------------*/
 export async function POST(req) {
   try {
+    // ✅ Always await DB connection
+    await connectDB();
+
     const body = await req.json();
     console.log("📩 Incoming POST body:", body);
 
@@ -98,9 +105,10 @@ export async function POST(req) {
       applicationBegin,
       lastDateApply,
       admissionDate,
+      // ✅ Handle the new multiple-link arrays safely
       importantLinks: {
-        applyOnline: importantLinks.applyOnline || "",
-        downloadNotice: importantLinks.downloadNotice || "",
+        applyOnline: Array.isArray(importantLinks.applyOnline) ? importantLinks.applyOnline : [],
+        downloadNotice: Array.isArray(importantLinks.downloadNotice) ? importantLinks.downloadNotice : [],
         officialWebsite: importantLinks.officialWebsite || "",
       },
     });
@@ -137,13 +145,13 @@ export async function POST(req) {
 ------------------------------------------*/
 export function PUT() {
   return NextResponse.json(
-    { message: "Method PUT Not Allowed" },
+    { message: "Method PUT Not Allowed on base route. Use /[slug] endpoint." },
     { status: 405 }
   );
 }
 export function DELETE() {
   return NextResponse.json(
-    { message: "Method DELETE Not Allowed" },
+    { message: "Method DELETE Not Allowed on base route. Use /[slug] endpoint." },
     { status: 405 }
   );
 }

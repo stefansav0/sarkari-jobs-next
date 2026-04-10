@@ -3,14 +3,17 @@ import { connectDB } from "@/lib/db";
 import AnswerKey from "@/lib/models/AnswerKey";
 import slugify from "slugify";
 
-// Connect once globally
-connectDB();
+// 🔴 Disable aggressive caching in Next.js App Router
+export const dynamic = "force-dynamic";
 
 /* -----------------------------------------
    🟦 GET — List Answer Keys (Paginated)
 ------------------------------------------*/
 export async function GET(req) {
   try {
+    // ✅ Always await DB connection INSIDE the function for Vercel/Serverless
+    await connectDB();
+
     const { searchParams } = new URL(req.url);
 
     const page = parseInt(searchParams.get("page")) || 1;
@@ -18,9 +21,10 @@ export async function GET(req) {
     const skip = (page - 1) * limit;
 
     const answerKeys = await AnswerKey.find()
-      .sort({ publishDate: -1 })
+      .sort({ createdAt: -1 }) // Sort by newest first
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const total = await AnswerKey.countDocuments();
 
@@ -47,28 +51,52 @@ export async function GET(req) {
 ------------------------------------------*/
 export async function POST(req) {
   try {
+    await connectDB();
+
     const body = await req.json();
 
-    if (!body.title) {
+    // ✅ Explicitly extract fields to ensure clean data matches the new frontend
+    const {
+      title,
+      conductedby,
+      applicationBegin,
+      lastDateApply,
+      examDate,
+      admitcard,
+      answerKeyRelease,
+      howToCheck,
+      publishDate,
+      importantLinks,
+    } = body;
+
+    if (!title) {
       return NextResponse.json(
         { message: "❌ Title is required" },
         { status: 400 }
       );
     }
 
-    const data = {
-      ...body,
-      slug: slugify(body.title, { lower: true, strict: true }),
-      departmentSlug: slugify(body.department || "", { lower: true, strict: true }),
-    };
+    const slug = slugify(title, { lower: true, strict: true });
 
-    const answerKey = new AnswerKey(data);
-    await answerKey.save();
+    // Mongoose handles the validation and saving
+    const newAnswerKey = await AnswerKey.create({
+      title,
+      slug,
+      conductedby,
+      applicationBegin,
+      lastDateApply,
+      examDate,
+      admitcard,
+      answerKeyRelease,
+      howToCheck, // This will safely save the TipTap HTML string
+      publishDate: publishDate || undefined, // fallback to Date.now() if empty
+      importantLinks,
+    });
 
     return NextResponse.json(
       {
         message: "✅ Answer Key created successfully",
-        answerKey,
+        answerKey: newAnswerKey,
       },
       { status: 201 }
     );
@@ -87,14 +115,14 @@ export async function POST(req) {
 ------------------------------------------*/
 export function PUT() {
   return NextResponse.json(
-    { message: "PUT not allowed" },
+    { message: "PUT not allowed on base route. Use /[slug] endpoint." },
     { status: 405 }
   );
 }
 
 export function DELETE() {
   return NextResponse.json(
-    { message: "DELETE not allowed" },
+    { message: "DELETE not allowed on base route. Use /[slug] endpoint." },
     { status: 405 }
   );
 }
