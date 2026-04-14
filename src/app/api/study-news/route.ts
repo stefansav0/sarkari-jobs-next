@@ -18,6 +18,15 @@ interface StudyNewsRequestBody {
 }
 
 /* -----------------------------------------
+   Helpers
+------------------------------------------*/
+// Removes HTML tags to create a clean, plain-text email snippet
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+/* -----------------------------------------
    🟩 POST — Create Study News + Send Email
 ------------------------------------------*/
 export async function POST(req: Request) {
@@ -56,6 +65,13 @@ export async function POST(req: Request) {
 
     /* --- Send Email Notification --- */
     try {
+      // 1. Clean the HTML out of the description
+      const cleanDescription = stripHtml(description);
+      // 2. Safely slice the plain text
+      const snippet = cleanDescription.length > 200 
+        ? cleanDescription.slice(0, 200) + "..." 
+        : cleanDescription;
+
       await sendToAllUsers({
         subject: "📢 New Study Update Just In!",
         html: `
@@ -65,11 +81,13 @@ export async function POST(req: Request) {
                 </div>
                 <p>Hi {{name}}, a new article has been posted:</p>
                 <h3>${title}</h3>
-                <p>${description.slice(0, 200)}...</p>
+                
+                <p style="color: #4b5563; line-height: 1.5;">${snippet}</p>
+                
                 <a 
                     href="${process.env.FRONTEND_URL}/study-news/${slug}"
                     style="display:block; padding:12px; background:#0057ff; color:#fff; 
-                        text-align:center; border-radius:6px; margin-top:10px;">
+                        text-align:center; border-radius:6px; margin-top:16px; text-decoration:none; font-weight:bold;">
                     👉 Read Full Article
                 </a>
             </div>
