@@ -12,7 +12,7 @@ const homeCategories = [
   { name: "Answer Key", path: "/answer-key" },
   { name: "Admission", path: "/admission" },
   { name: "Documents", path: "/documents" },
-  { name: "Study News", path: "study-news"},
+  { name: "Study News", path: "/study-news" },
 ];
 
 // FAQ data
@@ -42,13 +42,13 @@ const endpointToRouteMap: Record<string, string> = {
   "/api/admissions": "/admission",
   "/api/documents": "/documents",
   "/api/study-news": "/study-news",
-  "/api/jobs": "/jobs", 
+  "/api/jobs": "/jobs",
 };
 
 interface TableSectionProps {
   title: string;
   endpoint: string;
-  directLink?: boolean; 
+  directLink?: boolean;
 }
 
 interface ApiItem {
@@ -70,13 +70,13 @@ const parseApiResponse = (result: Record<string, unknown>): ApiItem[] => {
   if (Array.isArray(result)) return result as ApiItem[];
   if (Array.isArray(result.data)) return result.data as ApiItem[];
   if (Array.isArray(result.results)) return result.results as ApiItem[];
-  
+
   const arr = findFirstArray(result);
   return arr ? arr : [];
 };
 
 /* -------------------------------------------------------------------------- */
-/* NEW & IMPROVED: SEAMLESS LIVE UPDATES TICKER                               */
+/* NEW: SARKARI-STYLE BI-DIRECTIONAL MARQUEE NOTIFICATIONS                    */
 /* -------------------------------------------------------------------------- */
 interface TickerUpdate {
   title: string;
@@ -84,7 +84,7 @@ interface TickerUpdate {
   label: string;
 }
 
-const TopUpdatesTicker = () => {
+const SarkariStyleMarquee = () => {
   const [updates, setUpdates] = useState<TickerUpdate[]>([]);
 
   useEffect(() => {
@@ -102,16 +102,21 @@ const TopUpdatesTicker = () => {
         try {
           const res = await fetch(ep.url, { cache: "no-store" });
           if (!res.ok) return null;
-          
+
           const result = (await res.json()) as Record<string, unknown>;
           const parsedData = parseApiResponse(result);
 
           if (parsedData.length > 0) {
-            const item = parsedData[0]; 
-            
+            const item = parsedData[0];
+
             let itemLink = item.link || "";
             if (!itemLink) {
-              const slug = item.slug || (item.title || item.name || "update").toString().toLowerCase().replace(/\s+/g, "-");
+              const slug =
+                item.slug ||
+                (item.title || item.name || "update")
+                  .toString()
+                  .toLowerCase()
+                  .replace(/\s+/g, "-");
               const basePath = endpointToRouteMap[ep.url];
               itemLink = `${basePath}/${slug}`;
             }
@@ -123,7 +128,7 @@ const TopUpdatesTicker = () => {
             };
           }
         } catch (e) {
-          return null; 
+          return null;
         }
         return null;
       });
@@ -135,58 +140,79 @@ const TopUpdatesTicker = () => {
     fetchTopUpdates();
   }, []);
 
-  if (updates.length === 0) return null; 
+  if (updates.length === 0) return null;
 
-  // Duplicate content heavily to ensure a mathematically perfect, seamless infinite loop
-  const marqueeContent = [...updates, ...updates, ...updates, ...updates];
+  // Quadruple the arrays to ensure a mathematically perfect, seamless infinite loop
+  const contentRow1 = [...updates, ...updates, ...updates, ...updates];
+  // Reverse the array for the second row so the items look scattered differently
+  const reversedUpdates = [...updates].reverse();
+  const contentRow2 = [...reversedUpdates, ...reversedUpdates, ...reversedUpdates, ...reversedUpdates];
 
   return (
-    <div className="relative w-full max-w-7xl mx-auto mb-8 h-14 md:h-16 flex items-center bg-white rounded-full shadow-[0_4px_25px_-5px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden">
-      
-      {/* 1. Static "Live Updates" Badge on the left */}
-      <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center px-4 md:px-6 bg-gradient-to-r from-red-600 to-rose-500 text-white font-extrabold text-xs md:text-sm tracking-wider uppercase shadow-[4px_0_15px_rgba(225,29,72,0.4)]">
-        {/* Pulsing indicator dot */}
-        <span className="relative flex h-2.5 w-2.5 md:h-3 md:w-3 mr-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 md:h-3 md:w-3 bg-white"></span>
-        </span>
-        Notification
-      </div>
-
-      {/* 2. White gradient fade masks to soften the scrolling text entering/exiting */}
-      <div className="absolute left-[135px] md:left-[175px] top-0 bottom-0 w-12 md:w-20 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
-      <div className="absolute right-0 top-0 bottom-0 w-12 md:w-20 bg-gradient-to-l from-white to-transparent z-10 rounded-r-full pointer-events-none"></div>
-
-      {/* 3. Inline Styles for Seamless Marquee Animation */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes seamless-marquee {
+    <div className="w-full bg-white mb-8 border-y-2 border-gray-200 overflow-hidden py-3">
+      {/* Dynamic Keyframes for Left & Right Scrolling */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes marquee-left {
           0% { transform: translateX(0%); }
           100% { transform: translateX(-50%); } 
         }
-        .animate-seamless-marquee {
+        @keyframes marquee-right {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(0%); } 
+        }
+        .animate-marquee-left {
           display: flex;
           width: max-content;
-          animation: seamless-marquee 40s linear infinite;
+          animation: marquee-left 45s linear infinite;
         }
-        .animate-seamless-marquee:hover {
+        .animate-marquee-right {
+          display: flex;
+          width: max-content;
+          animation: marquee-right 45s linear infinite;
+        }
+        .animate-marquee-left:hover, .animate-marquee-right:hover {
           animation-play-state: paused;
         }
-      `}} />
-      
-      {/* 4. Scrolling Content Container */}
-      <div className="flex w-full overflow-hidden items-center h-full pl-[150px] md:pl-[200px]">
-        <div className="animate-seamless-marquee items-center gap-8 md:gap-14 py-2 cursor-pointer">
-          {marqueeContent.map((u, i) => (
-            <Link key={i} href={u.link} className="group flex items-center gap-3 whitespace-nowrap">
-              <span className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] md:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                {u.label}
-              </span>
-              <span className="text-sm md:text-base font-semibold text-gray-700 group-hover:text-red-600 transition-colors duration-300">
+      `,
+        }}
+      />
+
+      {/* Row 1: Right to Left (←) */}
+      <div className="flex w-full overflow-hidden items-center mb-2">
+        <div className="animate-marquee-left items-center gap-4 cursor-pointer">
+          {contentRow1.map((u, i) => (
+            <div key={`r1-${i}`} className="flex items-center gap-4 whitespace-nowrap">
+              <Link
+                href={u.link}
+                className={`text-[15px] md:text-[17px] font-bold hover:underline ${
+                  i % 2 === 0 ? "text-[#0000FF]" : "text-[#FF0000]"
+                }`}
+              >
                 {u.title}
-              </span>
-              {/* Bullet separator */}
-              <span className="text-gray-300 ml-4 hidden md:inline-block">•</span>
-            </Link>
+              </Link>
+              <span className="text-gray-500 font-bold text-sm md:text-base">||</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 2: Left to Right (→) */}
+      <div className="flex w-full overflow-hidden items-center">
+        <div className="animate-marquee-right items-center gap-4 cursor-pointer">
+          {contentRow2.map((u, i) => (
+            <div key={`r2-${i}`} className="flex items-center gap-4 whitespace-nowrap">
+              <Link
+                href={u.link}
+                className={`text-[15px] md:text-[17px] font-bold hover:underline ${
+                  i % 2 !== 0 ? "text-[#0000FF]" : "text-[#FF0000]"
+                }`}
+              >
+                {u.title}
+              </Link>
+              <span className="text-gray-500 font-bold text-sm md:text-base">||</span>
+            </div>
           ))}
         </div>
       </div>
@@ -195,7 +221,7 @@ const TopUpdatesTicker = () => {
 };
 
 /* -------------------------------------------------------------------------- */
-/* TABLE SECTION                                */
+/* TABLE SECTION                                                              */
 /* -------------------------------------------------------------------------- */
 const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps) => {
   const [data, setData] = useState<ApiItem[]>([]);
@@ -260,7 +286,8 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
                 );
               } else {
                 const slug =
-                  item.slug || (item.title || item.name || `item-${i}`)
+                  item.slug ||
+                  (item.title || item.name || `item-${i}`)
                     .toString()
                     .toLowerCase()
                     .replace(/\s+/g, "-");
@@ -286,7 +313,7 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
 };
 
 /* -------------------------------------------------------------------------- */
-/* HOME PAGE                                   */
+/* HOME PAGE                                                                  */
 /* -------------------------------------------------------------------------- */
 const Home = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -297,8 +324,8 @@ const Home = () => {
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative">
       
-      {/* 🚀 Sleek Top Updates Marquee Ticker */}
-      <TopUpdatesTicker />
+      {/* 🚀 New Sarkari Style Bi-Directional Marquee */}
+      <SarkariStyleMarquee />
 
       {/* Hero Section */}
       <section className="text-center py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-xl shadow-lg">
@@ -342,7 +369,7 @@ const Home = () => {
         <TableSection title="Latest Admit Cards" endpoint="/api/admit-cards" />
         <TableSection title="Latest Answer Keys" endpoint="/api/answer-keys" />
         <TableSection title="Latest Admissions" endpoint="/api/admissions" />
-        <TableSection title="Letest Study News" endpoint="/api/study-news" />
+        <TableSection title="Latest Study News" endpoint="/api/study-news" />
         <TableSection title="Latest Documents" endpoint="/api/documents" directLink />
       </section>
 
@@ -372,15 +399,17 @@ const Home = () => {
               >
                 <span className="font-semibold text-gray-900 text-sm sm:text-base">{faq.question}</span>
                 <span
-                  className={`text-blue-600 text-xl sm:text-2xl transform transition-transform duration-300 ${openIndex === index ? "rotate-45" : ""
-                    }`}
+                  className={`text-blue-600 text-xl sm:text-2xl transform transition-transform duration-300 ${
+                    openIndex === index ? "rotate-45" : ""
+                  }`}
                 >
                   +
                 </span>
               </button>
               <div
-                className={`px-4 sm:px-6 transition-all duration-300 overflow-hidden ${openIndex === index ? "max-h-48 py-3 sm:py-4" : "max-h-0"
-                  }`}
+                className={`px-4 sm:px-6 transition-all duration-300 overflow-hidden ${
+                  openIndex === index ? "max-h-48 py-3 sm:py-4" : "max-h-0"
+                }`}
               >
                 <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{faq.answer}</p>
               </div>
