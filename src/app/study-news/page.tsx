@@ -18,11 +18,26 @@ interface NewsItem {
 }
 
 /* --------------------------------
-   Helper: strip HTML safely
+   Helpers: Unescape & Strip HTML safely
 -------------------------------- */
+
+// 1. Convert HTML entities back to actual characters
+function unescapeHTML(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#039;/g, "'");
+}
+
+// 2. Decode the string first, then strip the HTML tags out
 function stripHtml(html?: string): string {
   if (!html) return "";
-  return html
+  const unescaped = unescapeHTML(html);
+  return unescaped
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -95,6 +110,7 @@ export default async function StudyNewsList() {
       {/* ---------- NEWS GRID ---------- */}
       <section className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {news.map((item) => {
+          // This will now properly decode the HTML before stripping it!
           const cleanText =
             stripHtml(item.excerpt) ||
             stripHtml(item.description) ||

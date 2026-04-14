@@ -26,8 +26,24 @@ interface News {
 /* -------------------------------
    Helpers
 -------------------------------- */
+
+// Unescape HTML entities from the database
+function unescapeHTML(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#039;/g, "'");
+}
+
+// Unescape before stripping HTML for SEO
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  if (!html) return "";
+  const unescaped = unescapeHTML(html);
+  return unescaped.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
 /* ✅ Safe recursive extractor (NO any) */
@@ -79,14 +95,14 @@ async function getRelated(slug: string): Promise<News[]> {
 }
 
 /* -------------------------------
-   SEO Metadata (FIXED)
+   SEO Metadata
 -------------------------------- */
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params; // ✅ FIX
+  const { slug } = await params;
   const news = await getNews(slug);
 
   if (!news) {
@@ -127,20 +143,23 @@ export async function generateMetadata({
 }
 
 /* -------------------------------
-   Page Component (FIXED)
+   Page Component
 -------------------------------- */
 export default async function StudyNewsDetail({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params; // ✅ FIX
+  const { slug } = await params;
   const news = await getNews(slug);
 
   if (!news) return notFound();
 
   const related = await getRelated(slug);
   const coverImage = news.coverImage || "/default-cover.jpg";
+
+  // Decode the HTML string right before rendering
+  const cleanHtmlContent = unescapeHTML(news.description);
 
   /* -------- Structured Data -------- */
   const structuredData = {
@@ -218,8 +237,11 @@ export default async function StudyNewsDetail({
                 lineHeight: 1.9,
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 "& p": { mb: 2 },
+                "& h2": { fontSize: "1.5rem", fontWeight: "bold", mb: 2, mt: 3 },
+                "& h3": { fontSize: "1.25rem", fontWeight: "bold", mb: 2, mt: 3 },
+                "& ul": { pl: 3, mb: 2 },
               }}
-              dangerouslySetInnerHTML={{ __html: news.description }}
+              dangerouslySetInnerHTML={{ __html: cleanHtmlContent }}
             />
           </Paper>
 
