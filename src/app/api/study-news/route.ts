@@ -156,18 +156,51 @@ export async function GET(req: Request) {
 }
 
 /* -----------------------------------------
+   🟥 DELETE — Delete Study News by Slug
+------------------------------------------*/
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const slug = searchParams.get("slug");
+
+    if (!slug) {
+      return NextResponse.json(
+        { message: "❌ Slug is required in the query parameters" },
+        { status: 400 }
+      );
+    }
+
+    const deletedNews = await StudyNews.findOneAndDelete({ slug });
+
+    if (!deletedNews) {
+      return NextResponse.json(
+        { message: "❌ Study news not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "✅ Study news deleted successfully", deletedNews },
+      { status: 200 }
+    );
+
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("❌ Error deleting study news:", errMsg);
+
+    return NextResponse.json(
+      { message: "❌ Server error", error: errMsg },
+      { status: 500 }
+    );
+  }
+}
+
+/* -----------------------------------------
    ❌ Methods Not Allowed
 ------------------------------------------*/
 export function PUT() {
   return NextResponse.json(
     { message: "Method PUT Not Allowed" },
-    { status: 405 }
-  );
-}
-
-export function DELETE() {
-  return NextResponse.json(
-    { message: "Method DELETE Not Allowed" },
     { status: 405 }
   );
 }

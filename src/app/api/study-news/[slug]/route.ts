@@ -13,7 +13,7 @@ export async function GET(
     context: { params: Promise<{ slug: string }> }
 ) {
     try {
-        const { slug } = await context.params; // ⭐ IMPORTANT FIX
+        const { slug } = await context.params;
 
         if (!slug) {
             return NextResponse.json(
@@ -35,6 +35,49 @@ export async function GET(
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Unknown error";
         console.error("🔥 Error fetching study news:", message);
+
+        return NextResponse.json(
+            { message: "❌ Server error", error: message },
+            { status: 500 }
+        );
+    }
+}
+
+/* -----------------------------------------
+   🟥 DELETE — Delete Study News by Slug
+------------------------------------------*/
+export async function DELETE(
+    req: Request,
+    context: { params: Promise<{ slug: string }> }
+) {
+    try {
+        const { slug } = await context.params; 
+
+        if (!slug) {
+            return NextResponse.json(
+                { message: "❌ Slug is required" },
+                { status: 400 }
+            );
+        }
+
+        // Delete the item matching the slug
+        const deletedNews = await StudyNews.findOneAndDelete({ slug });
+        
+        if (!deletedNews) {
+            return NextResponse.json(
+                { message: "❌ Study news not found" },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(
+            { message: "✅ Study news deleted successfully" },
+            { status: 200 }
+        );
+
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error("🔥 Error deleting study news:", message);
 
         return NextResponse.json(
             { message: "❌ Server error", error: message },
