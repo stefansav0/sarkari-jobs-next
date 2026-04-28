@@ -20,10 +20,44 @@ interface StudyNewsRequestBody {
 /* -----------------------------------------
    Helpers
 ------------------------------------------*/
-// Removes HTML tags to create a clean, plain-text email snippet
+// Aggressively removes HTML tags, inline styles, classes, and decode common entities
 function stripHtml(html: string): string {
   if (!html) return "";
-  return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  
+  let text = html;
+  
+  // 1. Remove style tags and their content
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  // 2. Remove script tags and their content
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  // 3. Remove all HTML tags (even those with complex attributes like Tailwind classes)
+  text = text.replace(/<[^>]*>?/gm, '');
+  // 4. Replace common HTML entities with spaces or actual characters
+  text = text.replace(/&nbsp;|&zwnj;|&raquo;|&laquo;|&gt;/gi, ' ');
+  text = text.replace(/&amp;/gi, '&');
+  text = text.replace(/&quot;/gi, '"');
+  text = text.replace(/&#39;/gi, "'");
+  text = text.replace(/&lt;/gi, '<');
+  
+  // 5. Replace multiple spaces/newlines with a single space and trim
+  return text.replace(/\s+/g, " ").trim();
+}
+
+// Safely truncate to nearest word to avoid cutting words in half
+function createSnippet(text: string, maxLength: number = 200): string {
+  if (text.length <= maxLength) return text;
+  
+  // Cut at maxLength
+  const truncated = text.substring(0, maxLength);
+  
+  // Find the last space to avoid cutting a word in half
+  const lastSpaceIndex = truncated.lastIndexOf(" ");
+  
+  if (lastSpaceIndex > 0) {
+      return truncated.substring(0, lastSpaceIndex) + "...";
+  }
+  
+  return truncated + "...";
 }
 
 /* -----------------------------------------
@@ -65,32 +99,55 @@ export async function POST(req: Request) {
 
     /* --- Send Email Notification --- */
     try {
-      // 1. Clean the HTML out of the description
+      // 1. Aggressively clean the HTML out of the description
       const cleanDescription = stripHtml(description);
-      // 2. Safely slice the plain text
-      const snippet = cleanDescription.length > 200 
-        ? cleanDescription.slice(0, 200) + "..." 
-        : cleanDescription;
+      
+      // 2. Safely create a snippet that doesn't break words
+      const snippet = createSnippet(cleanDescription, 200);
 
       await sendToAllUsers({
         subject: "📢 New Study Update Just In!",
         html: `
-            <div style="font-family: Arial; max-width: 600px; margin: auto; padding: 16px;">
-                <div style="background-color: #0057ff; padding: 16px; color: white; border-radius: 8px;">
-                    <strong>📰 Finderight News Alert</strong>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+          </head>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="background-color: #0057ff; padding: 20px; color: #ffffff; text-align: center;">
+                    <strong style="font-size: 20px; letter-spacing: 0.5px;">📰 Finderight News Alert</strong>
                 </div>
-                <p>Hi {{name}}, a new article has been posted:</p>
-                <h3>${title}</h3>
                 
-                <p style="color: #4b5563; line-height: 1.5;">${snippet}</p>
+                <div style="padding: 30px;">
+                    <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">Hi {{name}}, a new article has been posted:</p>
+                    
+                    <h2 style="color: #111827; font-size: 22px; margin-top: 0; margin-bottom: 15px; line-height: 1.3;">
+                        ${title}
+                    </h2>
+                    
+                    <div style="background-color: #f8fafc; border-left: 4px solid #0057ff; padding: 15px; margin-bottom: 25px;">
+                        <p style="color: #4b5563; line-height: 1.6; margin: 0; font-size: 15px;">
+                            ${snippet}
+                        </p>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <a href="${process.env.FRONTEND_URL}/study-news/${slug}"
+                           style="display: inline-block; padding: 14px 28px; background-color: #0057ff; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 16px;">
+                           👉 Read Full Article
+                        </a>
+                    </div>
+                </div>
                 
-                <a 
-                    href="${process.env.FRONTEND_URL}/study-news/${slug}"
-                    style="display:block; padding:12px; background:#0057ff; color:#fff; 
-                        text-align:center; border-radius:6px; margin-top:16px; text-decoration:none; font-weight:bold;">
-                    👉 Read Full Article
-                </a>
+                <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                        You received this because you subscribed to Finderight alerts.
+                    </p>
+                </div>
             </div>
+          </body>
+          </html>
         `,
       });
     } catch (emailErr: unknown) {

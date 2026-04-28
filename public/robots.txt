@@ -2,11 +2,23 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /admin/*
 Disallow: /dashboard
+Disallow: /dashboard/*
 Disallow: /profile
 Disallow: /login
 Disallow: /signup
 Disallow: /search
+Disallow: /api/
+Disallow: /*?*
+
+# Googlebot
+User-agent: Googlebot
+Allow: /
+
+# Googlebot-News
+User-agent: Googlebot-News
+Allow: /
 
 # Host
 Host: https://finderight.com
