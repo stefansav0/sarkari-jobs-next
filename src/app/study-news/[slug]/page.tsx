@@ -11,6 +11,10 @@ import {
 } from "@mui/material";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Image from "next/image";
+
+
+export const revalidate = 300;
 
 /* -------------------------------
    Types
@@ -66,8 +70,8 @@ async function getNews(slug: string): Promise<News | null> {
     process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
 
   const res = await fetch(`${base}/api/study-news?slug=${slug}`, {
-    cache: "no-store",
-  });
+  next: { revalidate: 300 }, // cache 5 min
+});
 
   if (!res.ok) return null;
   return res.json();
@@ -81,8 +85,8 @@ async function getRelated(slug: string): Promise<News[]> {
     process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
 
   const res = await fetch(`${base}/api/study-news?page=1&limit=10`, {
-    cache: "no-store",
-  });
+  next: { revalidate: 300 },
+});
 
   if (!res.ok) return [];
 
@@ -268,18 +272,28 @@ export default async function StudyNewsDetail({
             }}
           >
             <Box
-              component="img"
-              src={coverImage}
-              alt={news.title}
-              sx={{
-                width: "100%",
-                borderRadius: 3,
-                mb: { xs: 3, md: 5 },
-                maxHeight: { xs: 300, sm: 400, md: 500 },
-                objectFit: "cover",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-              }}
-            />
+  sx={{
+    width: "100%",
+    borderRadius: 3,
+    mb: { xs: 3, md: 5 },
+    overflow: "hidden", // keeps border radius clean
+    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+  }}
+>
+  <Image
+    src={coverImage}
+    alt={news.title}
+    width={1200}
+    height={600}
+    style={{
+      width: "100%",
+      height: "auto",
+      objectFit: "cover",
+    }}
+    sizes="(max-width: 768px) 100vw, 1200px"
+    priority
+  />
+</Box>
 
             {/* Reading Content Area */}
             <Box
