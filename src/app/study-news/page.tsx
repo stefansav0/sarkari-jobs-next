@@ -69,8 +69,8 @@ export default async function StudyNewsList() {
   const baseUrl =
     process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
 
-  const res = await fetch(`${baseUrl}/api/study-news?page=1&limit=20`, {
-    cache: "no-store",
+  const res = await fetch(`${baseUrl}/api/study-news?page=1&limit=9`, {
+    next: { revalidate: 60 },
   });
 
   if (!res.ok) {

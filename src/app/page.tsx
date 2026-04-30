@@ -5,6 +5,34 @@ import { useState, useEffect } from "react";
 import LatestJobs from "@/components/LatestJobs";
 import HomeBannerAd from "@/components/HomeBannerAd";
 
+/* -------------------------------------------------------------------------- */
+/* 🔥 OPTIMIZATION: GLOBAL REQUEST CACHE FOR INSTANT LOADING                  */
+/* This prevents duplicate API calls. If Marquee and TableSection request     */
+/* the same endpoint at the same time, they share the exact same network call.*/
+/* -------------------------------------------------------------------------- */
+const requestCache = new Map<string, Promise<Record<string, unknown>>>();
+
+const fetchWithCache = async (url: string): Promise<Record<string, unknown>> => {
+  if (requestCache.has(url)) {
+    return requestCache.get(url)!;
+  }
+
+  // next: { revalidate: 60 } allows the browser to load instantly for 60 seconds
+  // while keeping data fresh. Much faster than cache: "no-store".
+  const promise = fetch(url, { next: { revalidate: 60 } })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
+    })
+    .catch((err) => {
+      requestCache.delete(url); // Remove failed requests so they can be retried
+      throw err;
+    });
+
+  requestCache.set(url, promise);
+  return promise;
+};
+
 // Premium Home navigation categories with SVG icons
 const homeCategories = [
   { 
@@ -102,15 +130,14 @@ interface TableSectionProps {
   directLink?: boolean;
 }
 
-// Updated Interface to support images
 interface ApiItem {
   title?: string;
   name?: string;
   slug?: string;
   link?: string;
   createdAt?: string;
-  coverImage?: string; // Support for primary image
-  image?: string;      // Support for alternative image field
+  coverImage?: string;
+  image?: string;
   [key: string]: unknown;
 }
 
@@ -150,21 +177,18 @@ const SarkariStyleMarquee = () => {
         { url: "/api/admit-cards", label: "Admit Card" },
         { url: "/api/answer-keys", label: "Answer Key" },
         { url: "/api/admissions", label: "Admission" },
-        { url: "/api/study-news", label: "News" },
+        { url: "/api/study-news", label: "News" }, // Removed ?limit=6 so it shares cache
       ];
 
       const promises = endpoints.map(async (ep) => {
         try {
-          const res = await fetch(ep.url, { cache: "no-store" });
-          if (!res.ok) return null;
-
-          const result = (await res.json()) as Record<string, unknown>;
+          const result = await fetchWithCache(ep.url);
           const parsedData = parseApiResponse(result);
 
           if (parsedData.length > 0) {
             const item = parsedData[0];
-
             let itemLink = item.link || "";
+
             if (!itemLink) {
               const slug =
                 item.slug ||
@@ -183,7 +207,7 @@ const SarkariStyleMarquee = () => {
             };
           }
         } catch (e) {
-          return null;
+          return null; // Silent catch, handle missing smoothly
         }
         return null;
       });
@@ -276,18 +300,14 @@ const SarkariStyleMarquee = () => {
 const AnimatedStudyNews = () => {
   const [news, setNews] = useState<ApiItem[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Fallback image when no image is provided or if the image link is broken
   const DEFAULT_IMAGE = "https://placehold.co/600x400/e2e8f0/64748b?text=Study+News";
 
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const res = await fetch("/api/study-news?limit=6", { cache: "no-store" });
-        if (res.ok) {
-          const result = (await res.json()) as Record<string, unknown>;
-          setNews(parseApiResponse(result).slice(0, 6)); // Ensure max 6 items
-        }
+        // Fetches from the shared cache (eliminates duplicate request)
+        const result = await fetchWithCache("/api/study-news");
+        setNews(parseApiResponse(result).slice(0, 6));
       } catch (e) {
         console.error("Failed to fetch study news");
       } finally {
@@ -297,7 +317,6 @@ const AnimatedStudyNews = () => {
     fetchNews();
   }, []);
 
-  // Skeleton Loader matching the Image layout
   const renderSkeletons = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
       {[...Array(6)].map((_, i) => (
@@ -420,10 +439,8 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(endpoint, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const result = (await res.json()) as Record<string, unknown>;
-
+        // Will instantly resolve if Marquee already triggered the fetch!
+        const result = await fetchWithCache(endpoint);
         setData(parseApiResponse(result));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Error fetching data";
@@ -434,7 +451,7 @@ const TableSection = ({ title, endpoint, directLink = false }: TableSectionProps
       }
     };
     fetchData();
-  }, [endpoint, title]);
+  }, [endpoint]);
 
   const viewAllPath = endpointToRouteMap[endpoint] || "/";
 

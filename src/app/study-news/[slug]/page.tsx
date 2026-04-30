@@ -4,7 +4,6 @@ import {
   Box,
   Typography,
   Container,
-  Divider,
   Chip,
   Paper,
   Button,
@@ -12,9 +11,6 @@ import {
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
-
-
-export const revalidate = 300;
 
 /* -------------------------------
    Types
@@ -48,10 +44,8 @@ function stripHtml(html: string): string {
   return unescaped.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
-/* ✅ Safe recursive extractor (NO any) */
 function extractArray(input: unknown): News[] {
   if (Array.isArray(input)) return input as News[];
-
   if (input && typeof input === "object") {
     const record = input as Record<string, unknown>;
     for (const key in record) {
@@ -63,37 +57,46 @@ function extractArray(input: unknown): News[] {
 }
 
 /* -------------------------------
-   Fetch Single Article
+   Fetch Helpers (Now using On-Demand Tags)
 -------------------------------- */
 async function getNews(slug: string): Promise<News | null> {
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
-
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
   const res = await fetch(`${base}/api/study-news?slug=${slug}`, {
-  next: { revalidate: 300 }, // cache 5 min
-});
-
+    // This tells Next.js to cache this forever UNTIL the tag is busted
+    next: { tags: ["study-news", `study-news-${slug}`] }, 
+  });
   if (!res.ok) return null;
   return res.json();
 }
 
-/* -------------------------------
-   Fetch Related Articles
--------------------------------- */
 async function getRelated(slug: string): Promise<News[]> {
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
-
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
   const res = await fetch(`${base}/api/study-news?page=1&limit=10`, {
-  next: { revalidate: 300 },
-});
-
+    next: { tags: ["study-news"] },
+  });
   if (!res.ok) return [];
-
   const data: unknown = await res.json();
   const list = extractArray(data);
-
   return list.filter((n) => n.slug !== slug).slice(0, 5);
+}
+
+/* -------------------------------
+   generateStaticParams (Saves Vercel Bandwidth)
+-------------------------------- */
+export async function generateStaticParams() {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "https://www.finderight.com";
+  const res = await fetch(`${base}/api/study-news?page=1&limit=50`, {
+      next: { tags: ["study-news"] }
+  });
+  
+  if (!res.ok) return [];
+  
+  const data: unknown = await res.json();
+  const articles = extractArray(data);
+  
+  return articles.map((article) => ({
+    slug: article.slug,
+  }));
 }
 
 /* -------------------------------
@@ -122,7 +125,6 @@ export async function generateMetadata({
     title: `${news.title} | Finderight`,
     description,
     alternates: { canonical: canonicalUrl },
-
     openGraph: {
       title: news.title,
       description,
@@ -132,14 +134,12 @@ export async function generateMetadata({
       publishedTime: news.createdAt,
       images: [{ url: cover, width: 1200, height: 630 }],
     },
-
     twitter: {
       card: "summary_large_image",
       title: news.title,
       description,
       images: [cover],
     },
-
     robots: { index: true, follow: true },
   };
 }
@@ -159,10 +159,8 @@ export default async function StudyNewsDetail({
 
   const related = await getRelated(slug);
   const coverImage = news.coverImage || "/default-cover.jpg";
-
   const cleanHtmlContent = unescapeHTML(news.description);
 
-  /* -------- Structured Data -------- */
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -191,13 +189,11 @@ export default async function StudyNewsDetail({
 
   return (
     <Box sx={{ bgcolor: "grey.50", minHeight: "100vh", pb: { xs: 6, md: 10 } }}>
-      {/* JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Hero Background Block */}
       <Box
         sx={{
           background: "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
@@ -261,41 +257,40 @@ export default async function StudyNewsDetail({
           gap={{ xs: 4, lg: 5 }}
           alignItems="start"
         >
-          {/* MAIN ARTICLE */}
           <Paper
             elevation={4}
             sx={{
               p: { xs: 2.5, sm: 4, md: 6 },
               borderRadius: { xs: 3, md: 4 },
               bgcolor: "background.paper",
-              overflow: "hidden", // keeps images inside border radius cleanly
+              overflow: "hidden", 
             }}
           >
             <Box
-  sx={{
-    width: "100%",
-    borderRadius: 3,
-    mb: { xs: 3, md: 5 },
-    overflow: "hidden", // keeps border radius clean
-    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-  }}
->
-  <Image
-    src={coverImage}
-    alt={news.title}
-    width={1200}
-    height={600}
-    style={{
-      width: "100%",
-      height: "auto",
-      objectFit: "cover",
-    }}
-    sizes="(max-width: 768px) 100vw, 1200px"
-    priority
-  />
-</Box>
+              sx={{
+                width: "100%",
+                borderRadius: 3,
+                mb: { xs: 3, md: 5 },
+                overflow: "hidden", 
+                boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+              }}
+            >
+              <Image
+                src={coverImage}
+                alt={news.title}
+                width={1200}
+                height={600}
+                // unoptimized={true} // <-- KEEP THIS IN MIND FOR VERCEL BILLS!
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  objectFit: "cover",
+                }}
+                sizes="(max-width: 768px) 100vw, 1200px"
+                priority
+              />
+            </Box>
 
-            {/* Reading Content Area */}
             <Box
               sx={{
                 maxWidth: "80ch",
@@ -351,7 +346,6 @@ export default async function StudyNewsDetail({
             />
           </Paper>
 
-          {/* RELATED ARTICLES SIDEBAR (Visible on mobile at the bottom) */}
           <Box
             sx={{
               position: { lg: "sticky" },
@@ -427,7 +421,6 @@ export default async function StudyNewsDetail({
           </Box>
         </Box>
 
-        {/* Bottom Navigation */}
         <Box
           textAlign="center"
           mt={{ xs: 6, md: 10 }}
@@ -442,7 +435,7 @@ export default async function StudyNewsDetail({
               component="span"
               variant="outlined"
               size="large"
-              fullWidth // Ensures big tappable area on mobile
+              fullWidth
               sx={{
                 borderRadius: 8,
                 py: 1.5,
