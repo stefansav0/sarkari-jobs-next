@@ -97,35 +97,49 @@ function createSnippet(text: string, maxLength: number = 200) {
 ========================================= */
 export async function POST(req: Request) {
   try {
-    const body: StudyNewsRequestBody = await req.json();
+    const body: StudyNewsRequestBody =
+      await req.json();
 
     const {
       title,
       description,
+
       slug,
+
       coverImage,
       imageUrl,
+
       author,
 
       seoTitle,
       metaDescription,
+
       keywords,
 
       visibility,
     } = body;
 
-    // Validation
+    /* =========================================
+       VALIDATION
+    ========================================= */
     if (!title || !description) {
       return NextResponse.json(
         {
-          message: "❌ Title & Description are required",
+          success: false,
+          message:
+            "❌ Title & Description are required",
         },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
-    // Generate slug
-    const generatedSlug = slug
+    /* =========================================
+       GENERATE SLUG
+    ========================================= */
+    let generatedSlug = slug
       ? slugify(slug, {
           lower: true,
           strict: true,
@@ -135,44 +149,60 @@ export async function POST(req: Request) {
           strict: true,
         });
 
-    // Duplicate check
-    const exists = await StudyNews.findOne({
-      slug: generatedSlug,
-    });
+    /* =========================================
+       UNIQUE SLUG CHECK
+    ========================================= */
+    const existingSlug =
+      await StudyNews.findOne({
+        slug: generatedSlug,
+      });
 
-    if (exists) {
-      return NextResponse.json(
-        {
-          message:
-            "❌ Duplicate slug/title found",
-        },
-        { status: 400 }
-      );
+    // Auto append timestamp if exists
+    if (existingSlug) {
+      generatedSlug =
+        `${generatedSlug}-${Date.now()}`;
     }
 
-    // Convert keywords
-    let keywordsArray: string[] = [];
+    /* =========================================
+       KEYWORDS ARRAY
+    ========================================= */
+    let keywordsArray: string[] =
+      [];
 
-    if (typeof keywords === "string") {
-      keywordsArray = keywords
-        .split(",")
-        .map((k) => k.trim())
-        .filter(Boolean);
-    } else if (Array.isArray(keywords)) {
-      keywordsArray = keywords;
+    if (
+      typeof keywords ===
+      "string"
+    ) {
+      keywordsArray =
+        keywords
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean);
+    } else if (
+      Array.isArray(keywords)
+    ) {
+      keywordsArray =
+        keywords;
     }
 
-    // Create news
+    /* =========================================
+       CREATE NEWS
+    ========================================= */
     const news = new StudyNews({
       title,
+
       slug: generatedSlug,
 
       description,
 
-      coverImage: coverImage || "",
-      imageUrl: imageUrl || "",
+      coverImage:
+        coverImage || "",
 
-      author: author || "Admin",
+      imageUrl:
+        imageUrl || "",
+
+      author:
+        author || "Admin",
 
       seoTitle:
         seoTitle || title,
@@ -184,20 +214,29 @@ export async function POST(req: Request) {
           150
         ),
 
-      keywords: keywordsArray,
+      keywords:
+        keywordsArray,
 
       visibility:
-        visibility || "draft",
+        visibility ||
+        "draft",
 
-      publishDate: new Date(),
+      publishDate:
+        new Date(),
     });
 
+    /* =========================================
+       SAVE NEWS
+    ========================================= */
     await news.save();
 
     /* =========================================
-       SEND EMAIL ONLY IF PUBLISHED
+       SEND EMAIL IF PUBLISHED
     ========================================= */
-    if (visibility === "published") {
+    if (
+      visibility ===
+      "published"
+    ) {
       try {
         const cleanDescription =
           stripHtml(description);
@@ -209,74 +248,75 @@ export async function POST(req: Request) {
           );
 
         const featuredImage =
-          coverImage || imageUrl;
+          coverImage ||
+          imageUrl;
 
         await sendToAllUsers({
           subject:
             "📢 New Study Update Just In!",
 
           html: `
-            <!DOCTYPE html>
-            <html>
-            <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif;">
+          <!DOCTYPE html>
+          <html>
+          <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif;">
 
-              <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:10px;overflow:hidden;">
+            <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:10px;overflow:hidden;">
 
-                <div style="background:#0057ff;padding:20px;text-align:center;color:#fff;">
-                  <h1 style="margin:0;font-size:22px;">
-                    📰 Finderight News
-                  </h1>
-                </div>
+              <div style="background:#0057ff;padding:20px;text-align:center;color:#fff;">
+                <h1 style="margin:0;font-size:22px;">
+                  📰 Finderight News
+                </h1>
+              </div>
 
-                ${
-                  featuredImage
-                    ? `
-                    <img
-                      src="${featuredImage}"
-                      alt="${title}"
-                      style="width:100%;max-height:320px;object-fit:cover;"
-                    />
-                  `
-                    : ""
-                }
+              ${
+                featuredImage
+                  ? `
+                <img
+                  src="${featuredImage}"
+                  alt="${title}"
+                  style="width:100%;max-height:320px;object-fit:cover;"
+                />
+              `
+                  : ""
+              }
 
-                <div style="padding:30px;">
+              <div style="padding:30px;">
 
-                  <p style="font-size:15px;color:#6b7280;">
-                    Hi {{name}},
-                  </p>
+                <p style="font-size:15px;color:#6b7280;">
+                  Hi {{name}},
+                </p>
 
-                  <h2 style="font-size:24px;color:#111827;line-height:1.4;">
-                    ${title}
-                  </h2>
+                <h2 style="font-size:24px;color:#111827;">
+                  ${title}
+                </h2>
 
-                  <p style="font-size:16px;color:#4b5563;line-height:1.8;">
-                    ${snippet}
-                  </p>
+                <p style="font-size:16px;color:#4b5563;line-height:1.8;">
+                  ${snippet}
+                </p>
 
-                  <div style="margin-top:30px;text-align:center;">
-                    <a
-                      href="${process.env.FRONTEND_URL}/study-news/${generatedSlug}"
-                      style="
-                        display:inline-block;
-                        padding:14px 28px;
-                        background:#0057ff;
-                        color:#fff;
-                        text-decoration:none;
-                        border-radius:8px;
-                        font-weight:bold;
-                      "
-                    >
-                      👉 Read Full Article
-                    </a>
-                  </div>
-
+                <div style="margin-top:30px;text-align:center;">
+                  <a
+                    href="${process.env.FRONTEND_URL}/study-news/${generatedSlug}"
+                    style="
+                      display:inline-block;
+                      padding:14px 28px;
+                      background:#0057ff;
+                      color:#fff;
+                      text-decoration:none;
+                      border-radius:8px;
+                      font-weight:bold;
+                    "
+                  >
+                    👉 Read Full Article
+                  </a>
                 </div>
 
               </div>
 
-            </body>
-            </html>
+            </div>
+
+          </body>
+          </html>
           `,
         });
       } catch (emailError) {
@@ -287,16 +327,24 @@ export async function POST(req: Request) {
       }
     }
 
+    /* =========================================
+       SUCCESS RESPONSE
+    ========================================= */
     return NextResponse.json(
       {
         success: true,
+
         message:
           "✅ Study news created successfully",
 
         news,
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: corsHeaders,
+      }
     );
+
   } catch (error: unknown) {
     const errMsg =
       error instanceof Error
@@ -304,19 +352,23 @@ export async function POST(req: Request) {
         : "Unknown error";
 
     console.error(
-      "❌ Error creating news:",
+      "❌ POST Error:",
       errMsg
     );
 
     return NextResponse.json(
       {
         success: false,
+
         message:
           "❌ Error creating study news",
 
         error: errMsg,
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: corsHeaders,
+      }
     );
   }
 }
