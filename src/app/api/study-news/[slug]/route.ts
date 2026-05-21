@@ -5,31 +5,6 @@ import StudyNews from "@/lib/models/StudyNews";
 // Ensure DBConnection
 connectDB();
 
-
-/* =========================================
-   CORS HEADERS
-========================================= */
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods":
-        "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers":
-        "Content-Type, Authorization",
-};
-
-/* =========================================
-   OPTIONS — REQUIRED FOR CORS
-========================================= */
-export async function OPTIONS() {
-    return NextResponse.json(
-        {},
-        {
-            status: 200,
-            headers: corsHeaders,
-        }
-    );
-}
-
 /* -----------------------------------------
    🟦 GET — Fetch Study News by Slug
 ------------------------------------------*/
