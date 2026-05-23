@@ -13,6 +13,9 @@ connectDB();
 interface StudyNewsRequestBody {
   title: string;
   description: string;
+  slug?: string;             // ✅ Added
+  metaDescription?: string;  // ✅ Added
+  keywords?: string;         // ✅ Added
   coverImage?: string;
   author?: string;
 }
@@ -66,7 +69,8 @@ function createSnippet(text: string, maxLength: number = 200): string {
 export async function POST(req: Request) {
   try {
     const body: StudyNewsRequestBody = await req.json();
-    const { title, description, coverImage, author } = body;
+    // ✅ Extract the new fields from the body
+    const { title, description, slug, metaDescription, keywords, coverImage, author } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -75,21 +79,25 @@ export async function POST(req: Request) {
       );
     }
 
-    const slug = slugify(title, { lower: true, strict: true });
+    // ✅ Use the provided slug, or fallback to auto-generating from the title
+    const finalSlug = slugify(slug || title, { lower: true, strict: true });
 
     // Duplicate slug check
-    const exists = await StudyNews.findOne({ slug });
+    const exists = await StudyNews.findOne({ slug: finalSlug });
     if (exists) {
       return NextResponse.json(
-        { message: "❌ Duplicate post. Modify the title." },
+        { message: "❌ Duplicate URL slug. Please modify the slug or title." },
         { status: 400 }
       );
     }
 
+    // ✅ Save all fields to the database
     const news = new StudyNews({
       title,
       description,
-      slug,
+      slug: finalSlug,
+      metaDescription: metaDescription || "",
+      keywords: keywords || "",
       coverImage: coverImage || "",
       author: author || "Admin",
       publishDate: new Date(),
@@ -133,9 +141,9 @@ export async function POST(req: Request) {
                     </div>
                     
                     <div style="text-align: center;">
-                        <a href="${process.env.FRONTEND_URL}/study-news/${slug}"
+                        <a href="${process.env.FRONTEND_URL}/study-news/${finalSlug}"
                            style="display: inline-block; padding: 14px 28px; background-color: #0057ff; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 16px;">
-                           👉 Read Full Article
+                            👉 Read Full Article
                         </a>
                     </div>
                 </div>
