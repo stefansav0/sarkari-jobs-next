@@ -26,15 +26,19 @@ interface ResultType {
 // Safe HTML Decoder for the text fields
 function decodeHtml(html?: string) {
   if (!html) return "";
-  return html.replace(/\\u003C/g, "<").replace(/\\u003E/g, ">").replace(/\\u002F/g, "/");
+  return html
+    .replace(/\\u003C/g, "<")
+    .replace(/\\u003E/g, ">")
+    .replace(/\\u002F/g, "/");
 }
 
 /* --------------------------------------
    Fetch Single Result (NO CACHE)
 --------------------------------------- */
 async function getResult(slug: string): Promise<ResultType | null> {
-  const headersList = headers();
-  const host = (await headersList).get("host");
+  // Fixed: Await headers() to comply with Next.js 15 async API requirements
+  const resolvedHeaders = await headers();
+  const host = resolvedHeaders.get("host");
 
   if (!host) return null;
 
@@ -48,6 +52,12 @@ async function getResult(slug: string): Promise<ResultType | null> {
     if (!res.ok) return null;
     
     const data = await res.json();
+    
+    // Fixed: Properly extract the first result if the API returns a wrapped array 
+    // (As shown in the provided JSON snippet: {"results": [...]})
+    if (data.results && Array.isArray(data.results)) {
+        return data.results[0];
+    }
     
     return data.result || data; 
   } catch (error) {
@@ -146,6 +156,7 @@ function JsonLdSchemas(result: ResultType) {
             name: "How to check the result?",
             acceptedAnswer: {
               "@type": "Answer",
+              // Maintain newlines by retaining basic string structure for Schema
               text: result.howToCheck.replace(/<[^>]*>?/gm, ''), 
             },
           },
@@ -214,9 +225,16 @@ export default async function ResultDetailPage({
     );
   }
 
-  // Helper to safely format dates (since examDate might be plain text like "TBA")
+  // Fixed: Safe date formatter that prevents ranges like "February to March 2026" from 
+  // evaluating to "01 March 2026" due to V8 parsing quirks.
   const renderDate = (dateStr?: string) => {
     if (!dateStr) return "—";
+    
+    // If it contains "to" (e.g. "February to March") or is explicitly "TBA", return as-is
+    if (dateStr.toLowerCase().includes(" to ") || dateStr.toLowerCase() === "tba") {
+        return dateStr;
+    }
+
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-IN", { day: '2-digit', month: 'long', year: 'numeric' });
   };
@@ -280,7 +298,6 @@ export default async function ResultDetailPage({
                 <tr className="border-b border-gray-100">
                   <td className="w-1/3 font-semibold text-gray-600 p-4 bg-green-50/50">Exam Date:</td>
                   <td className="p-4 text-gray-900 font-medium">
-                    {/* ✅ Fixed: Will just render "TBA" if it's text, or format it if it's a date */}
                     {renderDate(result.examDate)}
                   </td>
                 </tr>
@@ -303,7 +320,8 @@ export default async function ResultDetailPage({
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <span className="text-blue-600">📖</span> How to Check Result
           </h2>
-          <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm prose prose-blue max-w-none text-gray-700 leading-relaxed" 
+          {/* Fixed: Added whitespace-pre-line so \n characters in the JSON are respected visually without needing extra parsing */}
+          <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm prose prose-blue max-w-none text-gray-700 leading-relaxed whitespace-pre-line" 
                dangerouslySetInnerHTML={{ __html: decodeHtml(result.howToCheck) }} 
           />
         </section>
