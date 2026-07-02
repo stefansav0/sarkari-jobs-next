@@ -1,7 +1,24 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow cross-origin requests from the admin panel to the main site API
+  // 1. Image Optimization Configuration (Fixes the Unsplash Error)
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**', 
+      },
+      // You can add more domains here in the future if needed!
+      // {
+      //   protocol: 'https',
+      //   hostname: 'another-image-domain.com',
+      // },
+    ],
+  },
+
+  // 2. CORS Headers Configuration (Allows admin panel access)
   async headers() {
     return [
       {

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { ExternalLink, ArrowUp } from "lucide-react";
+import { ExternalLink, ArrowUp, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 interface DocumentType {
   _id: string;
@@ -10,6 +11,7 @@ interface DocumentType {
   serviceType?: string;
   description?: string;
   link?: string;
+  slug?: string;
 }
 
 export default function Document() {
@@ -35,6 +37,7 @@ export default function Document() {
 
       setDocuments((prevDocs) => {
         const combined = [...prevDocs, ...newDocs];
+        // Remove duplicates based on _id
         const unique = Array.from(new Map(combined.map((item) => [item._id, item])).values());
         return unique;
       });
@@ -47,23 +50,26 @@ export default function Document() {
     }
   }, []);
 
+  // Initial Fetch
   useEffect(() => {
     fetchDocuments(1);
   }, [fetchDocuments]);
 
+  // Extract unique categories whenever documents change
   useEffect(() => {
     const allCategories = [
       "All",
       ...new Set(
         documents
           .map((doc) => doc.category)
-          .filter((cat): cat is string => typeof cat === "string")
+          .filter((cat): cat is string => typeof cat === "string" && cat.trim() !== "")
       ),
     ];
 
     setCategories(allCategories);
   }, [documents]);
 
+  // Filter documents based on selected category
   useEffect(() => {
     const filtered =
       selectedCategory === "All"
@@ -72,20 +78,24 @@ export default function Document() {
     setFilteredDocs(filtered);
   }, [documents, selectedCategory]);
 
+  // Infinite Scroll Observer
   const lastItemRef = useCallback(
     (node: HTMLElement | null) => {
       if (loading) return;
       if (observer.current) observer.current.disconnect();
+      
       observer.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && currentPage < totalPages) {
           fetchDocuments(currentPage + 1);
         }
       });
+      
       if (node) observer.current.observe(node);
     },
     [loading, currentPage, totalPages, fetchDocuments]
   );
 
+  // Scroll to top visibility toggle
   useEffect(() => {
     const handleScroll = () => setShowTopButton(window.scrollY > 300);
     window.addEventListener("scroll", handleScroll);
@@ -102,7 +112,7 @@ export default function Document() {
         Government Document Services
       </h1>
 
-      {error && <p className="text-red-500 text-center">{error}</p>}
+      {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
       {/* Category Buttons */}
       <div className="flex flex-wrap gap-3 justify-center mb-6">
@@ -110,10 +120,11 @@ export default function Document() {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-1 rounded-full text-sm font-medium capitalize ${selectedCategory === cat
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-              }`}
+            className={`px-4 py-1 rounded-full text-sm font-medium capitalize transition-colors ${
+              selectedCategory === cat
+                ? "bg-blue-600 text-white shadow-md"
+                : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+            }`}
           >
             {cat}
           </button>
@@ -124,8 +135,12 @@ export default function Document() {
       <div className="space-y-4">
         {filteredDocs.length > 0 ? (
           filteredDocs.map((doc, index) => {
-            const content = (
+            const isLastElement = filteredDocs.length === index + 1;
+            
+            return (
               <div
+                // Attach the observer to the last visible card
+                ref={isLastElement ? lastItemRef : null}
                 className="p-4 border rounded-2xl shadow hover:shadow-lg transition bg-white"
                 key={doc._id}
               >
@@ -137,31 +152,36 @@ export default function Document() {
                   </div>
                 )}
 
-                <p className="mt-2 text-sm text-gray-700">{doc.description}</p>
+                {doc.description && (
+                  <p className="mt-2 text-sm text-gray-700">{doc.description}</p>
+                )}
 
-                <div className="mt-3">
-                  <a
-                    href={doc.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                <div className="mt-4 flex gap-4">
+                  {/* Internal Link to Slug Page */}
+                  <Link
+                    href={`/documents/${doc.slug || doc._id}`}
+                    className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
                   >
-                    Go to Service <ExternalLink className="w-4 h-4 ml-1" />
-                  </a>
+                    View Details <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
+
+                  {/* External Link */}
+                  {doc.link && (
+                    <a
+                      href={doc.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Official Service <ExternalLink className="w-4 h-4 ml-1" />
+                    </a>
+                  )}
                 </div>
               </div>
             );
-
-            return filteredDocs.length === index + 1 ? (
-              <div ref={lastItemRef} key={`${doc._id}-last`}>
-                {content}
-              </div>
-            ) : (
-              content
-            );
           })
         ) : (
-          !error && <p className="text-center text-gray-500">No documents found.</p>
+          !loading && !error && <p className="text-center text-gray-500">No documents found in this category.</p>
         )}
       </div>
 

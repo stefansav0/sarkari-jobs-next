@@ -1,21 +1,46 @@
 import mongoose from "mongoose";
 import slugify from "slugify";
 
-const documentSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  slug: { type: String, required: true, unique: true },
-  category: { type: String, required: true }, // Identity, EPFO, ESIC, Ayushman, etc.
-  serviceType: { type: String }, // e.g., Apply, Download, Check Status
-  description: { type: String },
-  link: { type: String }, // Direct link to the govt service or action
+const documentSchema = new mongoose.Schema(
+  {
+    // Basic Details
+    title: { type: String, required: true, trim: true },
+    slug: { type: String, unique: true }, 
+    category: { type: String, required: true, trim: true },
+    serviceType: { type: String, trim: true },
+    link: { type: String, trim: true },
+    
+    // Content & Description
+    description: { type: String, trim: true }, // Short description
+    fullDescription: { type: String, trim: true }, // Full guide/details
+    
+    // SEO Details
+    metaDescription: { type: String, trim: true },
+    seoKeywords: { type: String, trim: true },
+    
+    // Metadata
+    publishDate: { type: Date, default: Date.now },
+    status: { type: String, enum: ["active", "expired"], default: "active" },
+  },
+  { 
+    timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
+  }
+);
 
-  publishDate: { type: Date, default: Date.now },
-  status: { type: String, enum: ["active", "expired"], default: "active" }
-});
+// Auto-generate unique slug before validation/saving
+documentSchema.pre("validate", async function (next) {
+  if (this.isModified("title") || this.isNew) {
+    const baseSlug = slugify(this.title, { lower: true, strict: true });
+    let currentSlug = baseSlug;
+    let counter = 1;
 
-documentSchema.pre("save", function (next) {
-  if (this.isModified("title")) {
-    this.slug = slugify(this.title, { lower: true, strict: true });
+    const Model = this.constructor;
+    while (await Model.findOne({ slug: currentSlug, _id: { $ne: this._id } })) {
+      currentSlug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    this.slug = currentSlug;
   }
   next();
 });
