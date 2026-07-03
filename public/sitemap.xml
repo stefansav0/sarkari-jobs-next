@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <sitemap><loc>https://finderight.com/sitemap-0.xml</loc></sitemap>
-<sitemap><loc>https://finderight.com/server-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/jobs-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/study-news-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/documents-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/results-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/admit-card-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/answer-key-sitemap.xml</loc></sitemap>
+<sitemap><loc>https://finderight.com/admission-sitemap.xml</loc></sitemap>
 </sitemapindex>

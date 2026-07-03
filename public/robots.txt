@@ -8,6 +8,9 @@ Disallow: /dashboard/*
 Disallow: /profile
 Disallow: /login
 Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-otp
 Disallow: /search
 Disallow: /api/
 Disallow: /*?*
@@ -25,4 +28,10 @@ Host: https://finderight.com
 
 # Sitemaps
 Sitemap: https://finderight.com/sitemap.xml
-Sitemap: https://finderight.com/server-sitemap.xml
+Sitemap: https://finderight.com/jobs-sitemap.xml
+Sitemap: https://finderight.com/study-news-sitemap.xml
+Sitemap: https://finderight.com/documents-sitemap.xml
+Sitemap: https://finderight.com/results-sitemap.xml
+Sitemap: https://finderight.com/admit-card-sitemap.xml
+Sitemap: https://finderight.com/answer-key-sitemap.xml
+Sitemap: https://finderight.com/admission-sitemap.xml
