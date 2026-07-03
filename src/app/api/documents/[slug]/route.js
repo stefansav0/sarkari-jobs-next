@@ -36,6 +36,7 @@ export async function GET(req, { params }) {
       headers: corsHeaders,
     });
   } catch (error) {
+    console.error("❌ Error fetching document:", error);
     return NextResponse.json(
       {
         message: "❌ Error fetching document",
@@ -57,31 +58,55 @@ export async function PUT(req, { params }) {
     // 2. Parse the incoming JSON body containing the edits
     const body = await req.json();
 
-    // 3. Find by slug and update. 
-    // `new: true` returns the updated document.
-    // `runValidators: true` ensures the new data follows your schema rules.
-    const updatedDocument = await Document.findOneAndUpdate(
-      { slug },
-      body,
-      { new: true, runValidators: true }
-    );
+    // 3. Find the existing document
+    const document = await Document.findOne({ slug });
 
-    if (!updatedDocument) {
+    if (!document) {
       return NextResponse.json(
         { message: "Document not found" },
         { status: 404, headers: corsHeaders }
       );
     }
 
+    // 4. Handle Slug Auto-generation intent on update
+    // If the frontend sends an empty slug, it means we want to auto-generate a new one from the title
+    if (body.slug !== undefined && body.slug.trim() === "") {
+      delete body.slug;          // Remove from the body payload
+      document.slug = undefined; // Clear it on the document so Mongoose hook regenerates it
+    }
+
+    // 5. Apply the updates to the document object
+    Object.assign(document, body);
+
+    // 6. Use .save() instead of findOneAndUpdate to ensure the pre('validate') schema hook fires!
+    await document.save();
+
     return NextResponse.json(
       { 
         message: "✅ Document updated successfully", 
-        document: updatedDocument 
+        document 
       },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
     console.error("❌ Error updating document:", error);
+
+    // Handle duplicate slug errors on update
+    if (error.code === 11000 && error.keyPattern?.slug) {
+      return NextResponse.json(
+        { message: "❌ Slug already exists. Try changing the URL Slug or Title." },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+
+    // Handle validation errors (e.g., clearing a required field)
+    if (error.name === "ValidationError") {
+      return NextResponse.json(
+        { message: "❌ Validation failed. Check required fields.", error: error.message },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     return NextResponse.json(
       {
         message: "❌ Error updating document",
@@ -114,6 +139,7 @@ export async function DELETE(req, { params }) {
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    console.error("❌ Error deleting document:", error);
     return NextResponse.json(
       {
         message: "❌ Error deleting document",

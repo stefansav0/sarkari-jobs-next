@@ -1,102 +1,223 @@
 import React from "react";
-import { ExternalLink, FileText } from "lucide-react";
+import { ExternalLink, FileText, ArrowLeft } from "lucide-react";
 import { Metadata } from "next";
+import Link from "next/link";
 
-// 1. DYNAMIC SEO METADATA
-// Next.js will run this before rendering the page to inject SEO tags for Google
+// ----------------------------------------------------------------------
+// 1. ADVANCED SEO METADATA GENERATION
+// ----------------------------------------------------------------------
 export async function generateMetadata({ 
   params 
 }: { 
   params: Promise<{ slug: string }> 
 }): Promise<Metadata> {
   const { slug } = await params;
-  const res = await fetch(`https://finderight.com/api/documents/${slug}`);
   
-  if (!res.ok) {
+  // Use your actual production domain here
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.finderight.com";
+  const pageUrl = `${baseUrl}/documents/${slug}`;
+
+  try {
+    const res = await fetch(`${baseUrl}/api/documents/${slug}`);
+    if (!res.ok) throw new Error("Not found");
+    
+    const doc = await res.json();
+    const seoTitle = `${doc.title} | FindeRight Document Services`;
+    const seoDescription = doc.metaDescription || doc.description || `Get complete details, guides, and official links for ${doc.title}.`;
+
+    return {
+      title: seoTitle,
+      description: seoDescription,
+      keywords: doc.seoKeywords || `${doc.category}, ${doc.serviceType}, online application, government documents`,
+      alternates: {
+        canonical: pageUrl, // Tells Google this is the master URL for this content
+      },
+      openGraph: {
+        title: seoTitle,
+        description: seoDescription,
+        url: pageUrl,
+        siteName: "FindeRight",
+        type: "article",
+        images: doc.coverImageUrl ? [
+          {
+            url: doc.coverImageUrl,
+            width: 1200,
+            height: 630,
+            alt: doc.title,
+          }
+        ] : [],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: seoTitle,
+        description: seoDescription,
+        images: doc.coverImageUrl ? [doc.coverImageUrl] : [],
+      },
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          'max-video-preview': -1,
+          'max-image-preview': 'large',
+          'max-snippet': -1,
+        },
+      },
+    };
+  } catch (error) {
     return { title: "Document Not Found | FindeRight" };
   }
-
-  const doc = await res.json();
-
-  return {
-    title: `${doc.title} | FindeRight Services`,
-    description: doc.metaDescription || doc.description || `Get details and apply for ${doc.title}`,
-    keywords: doc.seoKeywords || doc.category,
-  };
 }
 
+// ----------------------------------------------------------------------
 // 2. PAGE COMPONENT
+// ----------------------------------------------------------------------
 export default async function DocumentSlugPage({ 
   params 
 }: { 
   params: Promise<{ slug: string }> 
 }) {
   const { slug } = await params;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.finderight.com";
 
-  // Next.js automatically caches this fetch, so it won't hit your backend twice 
-  // (once for metadata, once for the page) in production!
-  const res = await fetch(`https://finderight.com/api/documents/${slug}`, {
+  // Fetch document data
+  const res = await fetch(`${baseUrl}/api/documents/${slug}`, {
     cache: "no-store" 
   });
   
   if (!res.ok) {
     return (
-      <div className="max-w-2xl mx-auto p-8 text-center mt-10">
-        <h1 className="text-2xl font-bold text-gray-800">Document not found</h1>
-        <p className="text-gray-500 mt-2">The document you are looking for does not exist or has been removed.</p>
+      <div className="max-w-2xl mx-auto p-8 text-center mt-20">
+        <h1 className="text-3xl font-bold text-slate-800">Document not found</h1>
+        <p className="text-slate-500 mt-3">The document you are looking for does not exist or has been removed.</p>
+        <Link href="/documents" className="inline-flex items-center mt-6 text-blue-600 hover:underline font-medium">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Documents
+        </Link>
       </div>
     );
   }
 
   const doc = await res.json();
 
-  return (
-    <div className="max-w-3xl mx-auto p-6 md:p-10 border rounded-2xl shadow-lg mt-10 bg-white">
-      
-      {/* Header Section */}
-      <div className="border-b border-gray-100 pb-6 mb-6">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 mb-4 leading-tight">
-          {doc.title}
-        </h1>
-        
-        {(doc.category || doc.serviceType) && (
-          <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-indigo-600 uppercase bg-indigo-50 w-fit px-3 py-1 rounded-full">
-            <FileText className="w-4 h-4" />
-            {doc.category ?? "Document"} {doc.serviceType && `— ${doc.serviceType}`}
-          </div>
-        )}
-      </div>
-      
-      {/* Short Description (Summary) */}
-      {doc.description && (
-        <p className="text-xl text-slate-600 mb-6 font-medium leading-relaxed">
-          {doc.description}
-        </p>
-      )}
+  // ----------------------------------------------------------------------
+  // 3. JSON-LD STRUCTURED DATA (FOR GOOGLE RICH SNIPPETS)
+  // ----------------------------------------------------------------------
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": doc.title,
+    "description": doc.metaDescription || doc.description,
+    "image": doc.coverImageUrl ? [doc.coverImageUrl] : [],
+    "datePublished": doc.createdAt || new Date().toISOString(),
+    "dateModified": doc.updatedAt || new Date().toISOString(),
+    "author": {
+      "@type": "Organization",
+      "name": "FindeRight"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "FindeRight",
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${baseUrl}/logo.png` // Replace with your actual logo URL
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `${baseUrl}/documents/${slug}`
+    }
+  };
 
-      {/* Full Description / Guide */}
-      {doc.fullDescription && (
-        <div className="prose prose-lg max-w-none text-slate-700 mb-8 whitespace-pre-wrap">
-          {doc.fullDescription}
+  return (
+    <>
+      {/* Inject JSON-LD Schema into the DOM safely */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* Wrapping the main content in <article> for semantic SEO */}
+      <article className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+        
+        <Link href="/documents" className="inline-flex items-center text-slate-500 hover:text-blue-600 font-medium mb-6 transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Directory
+        </Link>
+
+        <div className="border border-slate-200 rounded-3xl shadow-sm bg-white overflow-hidden">
+          
+          {/* Cover Image Hero Section */}
+          {doc.coverImageUrl && (
+            <figure className="w-full h-64 sm:h-80 md:h-96 bg-slate-100 border-b border-slate-200 relative m-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={doc.coverImageUrl} 
+                alt={`${doc.title} cover image`} 
+                className="w-full h-full object-cover"
+              />
+            </figure>
+          )}
+
+          <div className="p-6 md:p-10">
+            {/* Header Section */}
+            <header className="border-b border-slate-100 pb-8 mb-8">
+              {(doc.category || doc.serviceType) && (
+                <div className="flex items-center gap-2 text-sm font-bold tracking-wider text-indigo-600 uppercase bg-indigo-50 w-fit px-3.5 py-1.5 rounded-lg mb-4">
+                  <FileText className="w-4 h-4" />
+                  {doc.category ?? "Document"} {doc.serviceType && `— ${doc.serviceType}`}
+                </div>
+              )}
+              
+              <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 leading-tight">
+                {doc.title}
+              </h1>
+            </header>
+            
+            {/* Short Description (Summary) */}
+            {doc.description && (
+              <section aria-label="Summary">
+                <p className="text-xl text-slate-600 mb-10 font-medium leading-relaxed">
+                  {doc.description}
+                </p>
+              </section>
+            )}
+
+            {/* Main Content Rendering Logic */}
+            {doc.fullDescription && (
+              <section aria-label="Document Details" className="mb-12">
+                {doc.contentFormat === 'text' ? (
+                  <div className="prose prose-lg max-w-none text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                    {doc.fullDescription}
+                  </div>
+                ) : (
+                  <div 
+                    className="prose prose-lg prose-blue max-w-none"
+                    dangerouslySetInnerHTML={{ __html: doc.fullDescription }}
+                  />
+                )}
+              </section>
+            )}
+            
+            {/* Call to Action Link */}
+            {doc.link && (
+              <aside className="pt-8 border-t border-slate-100 mt-8">
+                <a
+                  href={doc.link}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow" // 'nofollow' is best practice for external outbound service links
+                  className="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-blue-600 text-white text-lg rounded-xl hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 font-bold"
+                >
+                  Access Official Service <ExternalLink className="w-5 h-5 ml-2.5" />
+                </a>
+                <p className="text-sm text-slate-400 mt-4 text-center md:text-left flex items-center justify-center md:justify-start">
+                  <span className="w-2 h-2 rounded-full bg-slate-300 mr-2"></span>
+                  You will be redirected to the official government portal.
+                </p>
+              </aside>
+            )}
+          </div>
         </div>
-      )}
-      
-      {/* Call to Action Link */}
-      {doc.link && (
-        <div className="pt-6 border-t border-gray-100 mt-4">
-          <a
-            href={doc.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center w-full md:w-auto px-6 py-3 bg-blue-600 text-white text-lg rounded-xl hover:bg-blue-700 hover:shadow-md transition-all font-semibold"
-          >
-            Access Official Service <ExternalLink className="w-5 h-5 ml-2" />
-          </a>
-          <p className="text-xs text-gray-400 mt-3 text-center md:text-left">
-            You will be redirected to the official government portal.
-          </p>
-        </div>
-      )}
-    </div>
+      </article>
+    </>
   );
 }

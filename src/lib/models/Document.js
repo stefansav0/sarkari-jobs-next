@@ -8,11 +8,15 @@ const documentSchema = new mongoose.Schema(
     slug: { type: String, unique: true }, 
     category: { type: String, required: true, trim: true },
     serviceType: { type: String, trim: true },
-    link: { type: String, trim: true },
+    link: { type: String, required: true, trim: true }, // Added required: true to match frontend validation
+    
+    // Media
+    coverImageUrl: { type: String, trim: true }, // NEW: Added to support cover image URLs
     
     // Content & Description
-    description: { type: String, trim: true }, // Short description
-    fullDescription: { type: String, trim: true }, // Full guide/details
+    description: { type: String, trim: true },
+    fullDescription: { type: String, trim: true },
+    contentFormat: { type: String, enum: ["html", "text"], default: "html" }, // NEW: Supports HTML or Plain Text
     
     // SEO Details
     metaDescription: { type: String, trim: true },
@@ -27,20 +31,29 @@ const documentSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate unique slug before validation/saving
+// Format and ensure unique slug before validation/saving
 documentSchema.pre("validate", async function (next) {
-  if (this.isModified("title") || this.isNew) {
-    const baseSlug = slugify(this.title, { lower: true, strict: true });
-    let currentSlug = baseSlug;
-    let counter = 1;
+  // Check if we need to generate/format a slug
+  if (this.isModified("title") || this.isModified("slug") || this.isNew) {
+    
+    // If the frontend passed a slug, use it as the base. Otherwise, fallback to the title.
+    const sourceForSlug = this.slug || this.title;
+    
+    if (sourceForSlug) {
+      // Clean up the slug (removes spaces, special characters, forces lowercase)
+      const baseSlug = slugify(sourceForSlug, { lower: true, strict: true });
+      let currentSlug = baseSlug;
+      let counter = 1;
 
-    const Model = this.constructor;
-    while (await Model.findOne({ slug: currentSlug, _id: { $ne: this._id } })) {
-      currentSlug = `${baseSlug}-${counter}`;
-      counter++;
+      // Ensure uniqueness in the database
+      const Model = this.constructor;
+      while (await Model.findOne({ slug: currentSlug, _id: { $ne: this._id } })) {
+        currentSlug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+
+      this.slug = currentSlug;
     }
-
-    this.slug = currentSlug;
   }
   next();
 });

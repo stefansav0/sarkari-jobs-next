@@ -45,6 +45,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
+    "react-quill": "^2.0.0",
     "slugify": "^1.6.6",
     "typescript": "^5.9.3"
   },

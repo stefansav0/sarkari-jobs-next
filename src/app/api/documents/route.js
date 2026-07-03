@@ -30,13 +30,22 @@ export async function GET(req) {
     const limit = 10;
     const skip = (page - 1) * limit;
     
-    // 2. Look for a category filter in the URL (e.g., ?page=1&category=Aadhaar)
+    // 2. Look for filters in the URL 
     const category = searchParams.get("category");
+    const searchQuery = searchParams.get("search"); // NEW: Added search support
 
     // 3. Build the MongoDB query object
     const query = {};
+    
     if (category && category !== "All") {
       query.category = category;
+    }
+
+    if (searchQuery) {
+      query.$or = [
+        { title: { $regex: searchQuery, $options: "i" } },
+        { slug: { $regex: searchQuery, $options: "i" } }
+      ];
     }
 
     // 4. Apply the query to both the find() and countDocuments() methods
@@ -52,6 +61,7 @@ export async function GET(req) {
         documents,
         totalPages: Math.ceil(total / limit),
         currentPage: page,
+        totalDocuments: total
       },
       { status: 200, headers: corsHeaders }
     );
@@ -75,8 +85,12 @@ export async function POST(req) {
     
     const body = await req.json();
 
-    // 2. Mongoose will automatically extract the new fullDescription, metaDescription, 
-    // and seoKeywords from the body based on your updated schema!
+    // 2. Clean up empty slug so Mongoose pre-validate hook can auto-generate it from the title
+    if (body.slug !== undefined && body.slug.trim() === "") {
+      delete body.slug;
+    }
+
+    // 3. Mongoose automatically extracts all new fields (coverImageUrl, contentFormat, etc.)
     const document = new Document(body);
 
     await document.save();
@@ -91,7 +105,7 @@ export async function POST(req) {
   } catch (error) {
     console.error("❌ Error saving document:", error);
 
-    // Handle missing required fields (like title or category) gracefully
+    // Handle missing required fields (like title, link, or category) gracefully
     if (error.name === "ValidationError") {
       return NextResponse.json(
         { message: "❌ Validation failed. Check required fields.", error: error.message },
@@ -99,10 +113,10 @@ export async function POST(req) {
       );
     }
 
-    // Fallback for duplicate slugs
+    // Fallback for duplicate slugs (Updated to reflect manual slug UI)
     if (error.code === 11000 && error.keyPattern?.slug) {
       return NextResponse.json(
-        { message: "❌ Slug already exists. Try a different title." },
+        { message: "❌ Slug already exists. Try changing the URL Slug or Title." },
         { status: 409, headers: corsHeaders }
       );
     }
