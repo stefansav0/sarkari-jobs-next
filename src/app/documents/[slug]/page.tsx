@@ -13,7 +13,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   
-  // Use your actual production domain here
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.finderight.com";
   const pageUrl = `${baseUrl}/documents/${slug}`;
 
@@ -30,7 +29,7 @@ export async function generateMetadata({
       description: seoDescription,
       keywords: doc.seoKeywords || `${doc.category}, ${doc.serviceType}, online application, government documents`,
       alternates: {
-        canonical: pageUrl, // Tells Google this is the master URL for this content
+        canonical: pageUrl,
       },
       openGraph: {
         title: seoTitle,
@@ -101,7 +100,7 @@ export default async function DocumentSlugPage({
   const doc = await res.json();
 
   // ----------------------------------------------------------------------
-  // 3. JSON-LD STRUCTURED DATA (FOR GOOGLE RICH SNIPPETS)
+  // 3. JSON-LD STRUCTURED DATA
   // ----------------------------------------------------------------------
   const jsonLd = {
     "@context": "https://schema.org",
@@ -120,7 +119,7 @@ export default async function DocumentSlugPage({
       "name": "FindeRight",
       "logo": {
         "@type": "ImageObject",
-        "url": `${baseUrl}/logo.png` // Replace with your actual logo URL
+        "url": `${baseUrl}/logo.png` 
       }
     },
     "mainEntityOfPage": {
@@ -131,13 +130,11 @@ export default async function DocumentSlugPage({
 
   return (
     <>
-      {/* Inject JSON-LD Schema into the DOM safely */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Wrapping the main content in <article> for semantic SEO */}
       <article className="max-w-4xl mx-auto px-4 py-8 md:py-12">
         
         <Link href="/documents" className="inline-flex items-center text-slate-500 hover:text-blue-600 font-medium mb-6 transition-colors">
@@ -146,7 +143,6 @@ export default async function DocumentSlugPage({
 
         <div className="border border-slate-200 rounded-3xl shadow-sm bg-white overflow-hidden">
           
-          {/* Cover Image Hero Section */}
           {doc.coverImageUrl && (
             <figure className="w-full h-64 sm:h-80 md:h-96 bg-slate-100 border-b border-slate-200 relative m-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -159,7 +155,6 @@ export default async function DocumentSlugPage({
           )}
 
           <div className="p-6 md:p-10">
-            {/* Header Section */}
             <header className="border-b border-slate-100 pb-8 mb-8">
               {(doc.category || doc.serviceType) && (
                 <div className="flex items-center gap-2 text-sm font-bold tracking-wider text-indigo-600 uppercase bg-indigo-50 w-fit px-3.5 py-1.5 rounded-lg mb-4">
@@ -173,7 +168,6 @@ export default async function DocumentSlugPage({
               </h1>
             </header>
             
-            {/* Short Description (Summary) */}
             {doc.description && (
               <section aria-label="Summary">
                 <p className="text-xl text-slate-600 mb-10 font-medium leading-relaxed">
@@ -182,7 +176,6 @@ export default async function DocumentSlugPage({
               </section>
             )}
 
-            {/* Main Content Rendering Logic */}
             {doc.fullDescription && (
               <section aria-label="Document Details" className="mb-12">
                 {doc.contentFormat === 'text' ? (
@@ -191,20 +184,27 @@ export default async function DocumentSlugPage({
                   </div>
                 ) : (
                   <div 
-                    className="prose prose-lg prose-blue max-w-none"
+                    // Added fallback formatting rules directly into the className to ensure spacing 
+                    // even if the typography plugin fails to load!
+                    className="prose prose-lg prose-blue max-w-none text-slate-700 
+                               [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-6 [&_li]:mb-2 
+                               [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-6 
+                               [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-4 
+                               [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4 
+                               [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mt-6 [&_h3]:mb-3 
+                               [&_p]:mb-5 [&_p]:leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: doc.fullDescription }}
                   />
                 )}
               </section>
             )}
             
-            {/* Call to Action Link */}
             {doc.link && (
               <aside className="pt-8 border-t border-slate-100 mt-8">
                 <a
                   href={doc.link}
                   target="_blank"
-                  rel="noopener noreferrer nofollow" // 'nofollow' is best practice for external outbound service links
+                  rel="noopener noreferrer nofollow" 
                   className="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-blue-600 text-white text-lg rounded-xl hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 font-bold"
                 >
                   Access Official Service <ExternalLink className="w-5 h-5 ml-2.5" />
