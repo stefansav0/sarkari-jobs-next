@@ -177,7 +177,8 @@ const SarkariStyleMarquee = () => {
         { url: "/api/admit-cards", label: "Admit Card" },
         { url: "/api/answer-keys", label: "Answer Key" },
         { url: "/api/admissions", label: "Admission" },
-        { url: "/api/study-news", label: "News" }, // Removed ?limit=6 so it shares cache
+        { url: "/api/study-news", label: "News" },
+        { url: "/api/documents", label: "Document" }, 
       ];
 
       const promises = endpoints.map(async (ep) => {
@@ -607,7 +608,7 @@ const Home = () => {
         <TableSection title="Latest Admit Cards" endpoint="/api/admit-cards" />
         <TableSection title="Latest Answer Keys" endpoint="/api/answer-keys" />
         <TableSection title="Latest Admissions" endpoint="/api/admissions" />
-        <TableSection title="Latest Documents" endpoint="/api/documents" directLink />
+        <TableSection title="Latest Documents" endpoint="/api/documents"  />
       </section>
 
       {/* About Section */}
