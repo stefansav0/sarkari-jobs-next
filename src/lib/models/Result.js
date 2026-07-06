@@ -5,6 +5,10 @@ const ResultSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   slug: { type: String, unique: true, lowercase: true, trim: true },
 
+  // --- NEW: SEO Fields ---
+  seoKeywords: { type: String, trim: true },
+  metaDescription: { type: String, trim: true },
+
   conductedBy: { type: String, trim: true },                 
   department: { type: String, trim: true },
   category: { type: String, trim: true },
@@ -15,8 +19,9 @@ const ResultSchema = new mongoose.Schema({
   resultDate: { type: String, trim: true },
   postDate: { type: Date, default: Date.now },  
 
-  shortInfo: { type: String, trim: true },                  
-  howToCheck: { type: String, trim: true },
+  // --- UPDATED: HTML Support ---
+  detailedHtml: { type: String, trim: true }, // Replaced shortInfo
+  howToCheck: { type: String, trim: true },   // Now expects Tailwind HTML
 
   importantDates: {
     applicationBegin: { type: String, trim: true },
@@ -25,7 +30,6 @@ const ResultSchema = new mongoose.Schema({
     resultDate: { type: String, trim: true }
   },
 
-  // ✅ UPDATED: Matches the new frontend form structure perfectly
   importantLinks: {
     downloadResult: [
       {
@@ -37,18 +41,21 @@ const ResultSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Auto-generate the slug from the title before saving
+// Auto-generate the slug from the title before saving ONLY if one isn't provided
 ResultSchema.pre("save", function (next) {
-  if (this.isModified("title")) {
+  // If the title exists but the slug is empty/missing, auto-generate it
+  if (this.title && !this.slug) {
     this.slug = slugify(this.title, { lower: true, strict: true });
   }
   next();
 });
 
-// Update the slug if the title is updated via findOneAndUpdate
+// Update the slug if the title is updated via findOneAndUpdate, but respect manual slugs
 ResultSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
-  if (update.title) {
+  
+  // If updating the title and NOT explicitly updating the slug, regenerate it
+  if (update.title && !update.slug) {
     update.slug = slugify(update.title, { lower: true, strict: true });
   }
   next();

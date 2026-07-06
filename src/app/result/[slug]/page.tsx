@@ -14,11 +14,13 @@ interface ImportantLinks {
 interface ResultType {
   slug: string;
   title: string;
+  seoKeywords?: string;
+  metaDescription?: string;
   conductedBy?: string;
   examDate?: string;
   resultDate?: string;
   postDate?: string;
-  shortInfo?: string;
+  detailedHtml?: string;
   howToCheck?: string;
   importantLinks?: ImportantLinks;
 }
@@ -36,7 +38,6 @@ function decodeHtml(html?: string) {
    Fetch Single Result (NO CACHE)
 --------------------------------------- */
 async function getResult(slug: string): Promise<ResultType | null> {
-  // Fixed: Await headers() to comply with Next.js 15 async API requirements
   const resolvedHeaders = await headers();
   const host = resolvedHeaders.get("host");
 
@@ -53,8 +54,6 @@ async function getResult(slug: string): Promise<ResultType | null> {
     
     const data = await res.json();
     
-    // Fixed: Properly extract the first result if the API returns a wrapped array 
-    // (As shown in the provided JSON snippet: {"results": [...]})
     if (data.results && Array.isArray(data.results)) {
         return data.results[0];
     }
@@ -85,16 +84,18 @@ export async function generateMetadata({
   }
 
   const canonical = `https://finderight.com/result/${result.slug}`;
-  const cleanDescription = result.shortInfo?.replace(/<[^>]*>?/gm, '') || `Check ${result.title} result, cut off marks, merit list and full details on Finderight.`;
+  
+  const description = result.metaDescription || `Check ${result.title} result, cut off marks, merit list and full details on Finderight.`;
 
   return {
     title: `${result.title} – Download Result, Cut Off, Merit List`,
-    description: cleanDescription.substring(0, 160),
+    description: description.substring(0, 160),
+    keywords: result.seoKeywords ? result.seoKeywords.split(',').map(k => k.trim()) : [],
     alternates: { canonical },
     openGraph: {
       type: "article",
       title: result.title,
-      description: cleanDescription.substring(0, 160),
+      description: description.substring(0, 160),
       url: canonical,
       siteName: "Finderight",
       publishedTime: result.postDate,
@@ -110,7 +111,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: result.title,
-      description: cleanDescription.substring(0, 160),
+      description: description.substring(0, 160),
       images: ["https://finderight.com/og-result.png"],
     },
     robots: {
@@ -125,7 +126,7 @@ export async function generateMetadata({
 --------------------------------------- */
 function JsonLdSchemas(result: ResultType) {
   const url = `https://finderight.com/result/${result.slug}`;
-  const cleanDescription = result.shortInfo?.replace(/<[^>]*>?/gm, '') || result.title;
+  const cleanDescription = result.metaDescription || result.title;
 
   const newsSchema = {
     "@context": "https://schema.org",
@@ -156,7 +157,6 @@ function JsonLdSchemas(result: ResultType) {
             name: "How to check the result?",
             acceptedAnswer: {
               "@type": "Answer",
-              // Maintain newlines by retaining basic string structure for Schema
               text: result.howToCheck.replace(/<[^>]*>?/gm, ''), 
             },
           },
@@ -225,12 +225,9 @@ export default async function ResultDetailPage({
     );
   }
 
-  // Fixed: Safe date formatter that prevents ranges like "February to March 2026" from 
-  // evaluating to "01 March 2026" due to V8 parsing quirks.
   const renderDate = (dateStr?: string) => {
     if (!dateStr) return "—";
     
-    // If it contains "to" (e.g. "February to March") or is explicitly "TBA", return as-is
     if (dateStr.toLowerCase().includes(" to ") || dateStr.toLowerCase() === "tba") {
         return dateStr;
     }
@@ -256,14 +253,6 @@ export default async function ResultDetailPage({
           </div>
         )}
       </div>
-
-      {/* SHORT INFO SECTION */}
-      {result.shortInfo && (
-        <div className="mb-10 bg-gradient-to-br from-indigo-50 to-blue-50 border-l-4 border-indigo-500 p-5 rounded-r-lg shadow-sm">
-          <h3 className="font-bold text-indigo-900 mb-2 text-lg">📌 Brief Information</h3>
-          <div className="text-gray-700 text-sm md:text-base leading-relaxed" dangerouslySetInnerHTML={{ __html: decodeHtml(result.shortInfo) }} />
-        </div>
-      )}
 
       {/* INFO & DATES GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
@@ -314,16 +303,28 @@ export default async function ResultDetailPage({
 
       </div>
 
-      {/* HOW TO CHECK */}
+      {/* 🚀 FIXED: NOTICE DETAILS (HTML Rendering) */}
+      {result.detailedHtml && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <span className="text-indigo-600">📌</span> Notice Details
+          </h2>
+          {/* Added a subtle container so your custom Tailwind looks framed and intentional */}
+          <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm w-full overflow-hidden">
+            <div dangerouslySetInnerHTML={{ __html: decodeHtml(result.detailedHtml) }} />
+          </div>
+        </section>
+      )}
+
+      {/* HOW TO CHECK (HTML Rendering) */}
       {result.howToCheck && (
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             <span className="text-blue-600">📖</span> How to Check Result
           </h2>
-          {/* Fixed: Added whitespace-pre-line so \n characters in the JSON are respected visually without needing extra parsing */}
-          <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm prose prose-blue max-w-none text-gray-700 leading-relaxed whitespace-pre-line" 
-               dangerouslySetInnerHTML={{ __html: decodeHtml(result.howToCheck) }} 
-          />
+          <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm w-full overflow-hidden">
+            <div dangerouslySetInnerHTML={{ __html: decodeHtml(result.howToCheck) }} />
+          </div>
         </section>
       )}
 

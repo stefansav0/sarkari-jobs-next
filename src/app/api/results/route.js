@@ -15,14 +15,17 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    // ✅ Extracted EXACTLY what the new AdminAddResult frontend form sends
+    // ✅ Extracted EXACTLY what the new AdminAddResult frontend and updated model expects
     const {
       title,
+      slug,             // Now accepting the manual/auto-generated slug from the frontend
+      seoKeywords,      // New SEO field
+      metaDescription,  // New SEO field
       conductedBy,
       examDate,
       resultDate,
       postDate,
-      shortInfo,
+      detailedHtml,     // Replaces shortInfo
       howToCheck,
       importantLinks,
     } = body;
@@ -33,19 +36,32 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+    
+    if (!detailedHtml) {
+      return NextResponse.json(
+        { message: "❌ 'detailedHtml' is required for the notice body" },
+        { status: 400 }
+      );
+    }
 
-    const slug = slugify(title, { lower: true, strict: true });
+    // Use the frontend slug if provided, otherwise generate it. 
+    // We pass it through slugify again just to ensure it is URL-safe if manually typed.
+    const finalSlug = slug 
+      ? slugify(slug, { lower: true, strict: true }) 
+      : slugify(title, { lower: true, strict: true });
 
     const result = await Result.create({
       title,
+      slug: finalSlug,
+      seoKeywords,
+      metaDescription,
       conductedBy,
       examDate,
       resultDate,
       postDate,
-      shortInfo,
+      detailedHtml,
       howToCheck,
       importantLinks,
-      slug, // Mongoose also has a pre-save hook for this, but explicitly passing it is perfectly safe
     });
 
     return NextResponse.json(
@@ -58,6 +74,14 @@ export async function POST(req) {
   } catch (error) {
     console.error("❌ Error saving result:", error);
 
+    // Specifically catch unique index errors (like duplicate slugs)
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { message: "❌ A result with this Title or Slug already exists. Please change the URL Slug." },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { message: "❌ Error saving result", error: error.message },
       { status: 500 }
@@ -66,7 +90,7 @@ export async function POST(req) {
 }
 
 /* -----------------------------------------
-   🟦 GET — Paginated Results (FIXED SORT)
+   🟦 GET — Paginated Results
 ------------------------------------------*/
 export async function GET(req) {
   try {
@@ -79,7 +103,6 @@ export async function GET(req) {
     const skip = (page - 1) * limit;
 
     const results = await Result.find({})
-      // ✅ FIX: sort by createdAt (ALL documents have this)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

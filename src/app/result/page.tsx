@@ -2,15 +2,14 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-// Removed unused router import
-// import { useRouter } from "next/navigation";
-import { CalendarDays, ExternalLink, ArrowUp } from "lucide-react";
+import { CalendarDays, ExternalLink, ArrowUp, Building2 } from "lucide-react";
 
 interface Result {
   _id: string;
   title: string;
   slug: string;
-  publishDate: string;
+  postDate: string;       // ✅ Updated from publishDate to match new backend
+  conductedBy?: string;   // ✅ Added to show the authority in the UI
 }
 
 interface ApiResponse {
@@ -43,7 +42,7 @@ const ResultsPage = () => {
       setTotalPages(data.totalPages || 1);
       setCurrentPage(data.currentPage || page);
     } catch {
-      setError("Failed to load results");
+      setError("Failed to load results. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -53,6 +52,7 @@ const ResultsPage = () => {
     fetchResults(1);
   }, []);
 
+  // Infinite Scroll Observer
   const lastResultRef = useCallback(
     (node: HTMLDivElement | null) => {
       if (loading) return;
@@ -71,6 +71,7 @@ const ResultsPage = () => {
     [loading, currentPage, totalPages]
   );
 
+  // Scroll to Top Button Logic
   useEffect(() => {
     const handleScroll = () => {
       setShowTopButton(window.scrollY > 300);
@@ -84,49 +85,61 @@ const ResultsPage = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-3xl font-bold text-center mb-6 text-indigo-600">
-        Latest Sarkari Results
-      </h1>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 min-h-screen bg-gray-50">
+      <div className="mb-10 text-center">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
+          Latest Sarkari Results
+        </h1>
+        <p className="text-gray-500">Stay updated with the latest government exam results</p>
+      </div>
 
-      {error && <p className="text-red-500 text-center">{error}</p>}
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-center border border-red-100">
+          {error}
+        </div>
+      )}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {results.length > 0 ? (
           results.map((result, index) => {
-            const publishDate = new Date(result.publishDate);
-            const isValidDate = !isNaN(publishDate.getTime());
+            const postDate = new Date(result.postDate);
+            const isValidDate = !isNaN(postDate.getTime());
 
             const card = (
               <div
-                className="p-4 border rounded-2xl shadow hover:shadow-lg transition bg-white"
+                className="group relative p-5 md:p-6 border border-gray-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-all duration-200"
                 key={result._id}
               >
                 <Link
                   href={`/result/${result.slug}`}
-                  className="text-lg font-semibold text-blue-600 hover:underline"
+                  className="block text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2"
                 >
                   {result.title}
                 </Link>
 
-                {isValidDate && (
-                  <div className="text-sm text-gray-500 mt-1 flex items-center">
-                    <CalendarDays className="w-4 h-4 mr-1" />
-                    {publishDate.toLocaleDateString()}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-3">
+                  {result.conductedBy && (
+                    <div className="flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">
+                      <Building2 className="w-4 h-4 mr-1.5" />
+                      {result.conductedBy}
+                    </div>
+                  )}
+                  
+                  
+                </div>
 
-                <div className="mt-3">
+                <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
                   <Link
                     href={`/result/${result.slug}`}
-                    className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                    className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold transition-colors"
                   >
-                    Download Result <ExternalLink className="w-4 h-4 ml-1" />
+                    View Details & Download <ExternalLink className="w-4 h-4 ml-1.5" />
                   </Link>
                 </div>
               </div>
             );
 
+            // Attach observer to the last element for infinite scroll
             return index === results.length - 1 ? (
               <div ref={lastResultRef} key={`${result._id}-last`}>
                 {card}
@@ -136,20 +149,25 @@ const ResultsPage = () => {
             );
           })
         ) : (
-          !error && <p className="text-center text-gray-500">No results available.</p>
+          !error && !loading && (
+            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+              <p className="text-gray-500 text-lg">No results available at the moment.</p>
+            </div>
+          )
         )}
       </div>
 
       {loading && (
-        <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600" />
+        <div className="flex justify-center items-center py-10">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-200 border-t-blue-600" />
         </div>
       )}
 
+      {/* Floating Scroll to Top Button */}
       {showTopButton && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 p-3 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition z-50"
+          className="fixed bottom-8 right-8 p-3.5 rounded-full bg-gray-900 text-white shadow-xl hover:bg-blue-600 hover:-translate-y-1 transition-all duration-200 z-50"
           aria-label="Back to Top"
         >
           <ArrowUp className="w-5 h-5" />

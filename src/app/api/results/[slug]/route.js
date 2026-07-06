@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Result from "@/lib/models/Result";
+import slugify from "slugify";
 
 /* -----------------------------------------
    🟦 GET — Fetch Result by Slug
@@ -57,6 +58,14 @@ export async function PUT(req, context) {
       return NextResponse.json({ message: "❌ Slug is required" }, { status: 400 });
     }
 
+    // Safely enforce URL-friendly formatting if the admin manually edited the slug
+    if (body.slug) {
+      body.slug = slugify(body.slug, { lower: true, strict: true });
+    } else if (body.title) {
+       // Fallback: If they cleared the slug but kept the title, regenerate it
+      body.slug = slugify(body.title, { lower: true, strict: true });
+    }
+
     // findOneAndUpdate updates the document in MongoDB
     // { new: true } tells it to return the updated data instead of the old data
     const updatedResult = await Result.findOneAndUpdate(
@@ -75,6 +84,15 @@ export async function PUT(req, context) {
     );
   } catch (error) {
     console.error("🔥 Error updating result:", error);
+    
+    // Specifically catch unique index errors (like duplicate slugs being edited)
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { message: "❌ A result with this Title or Slug already exists. Please choose a different slug." },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { message: "❌ Error updating result", error: error.message },
       { status: 500 }
