@@ -2,6 +2,9 @@ import Link from "next/link";
 import { connectDB } from "@/lib/db";
 import QuestionPaper from "@/lib/models/QuestionPaper";
 
+// Add this line to force Next.js to fetch fresh data on every request
+export const dynamic = 'force-dynamic';
+
 export default async function PapersListPage() {
   await connectDB();
   

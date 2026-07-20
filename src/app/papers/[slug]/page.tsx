@@ -19,10 +19,11 @@ interface IQuestionPaper {
   updatedAt?: string;
 }
 
+// UPDATE: params is now a Promise
 interface PageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // 2. Fetcher Function (Cached)
@@ -34,7 +35,9 @@ const getPaper = cache(async (slug: string): Promise<IQuestionPaper | null> => {
 
 // 3. Dynamic SEO Metadata using your new fields
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const paper = await getPaper(params.slug);
+  // UPDATE: Await the params Promise
+  const resolvedParams = await params;
+  const paper = await getPaper(resolvedParams.slug);
 
   if (!paper) {
     return {
@@ -63,7 +66,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // 4. The Page Component
 export default async function SinglePaperPage({ params }: PageProps) {
-  const paper = await getPaper(params.slug);
+  // UPDATE: Await the params Promise
+  const resolvedParams = await params;
+  const paper = await getPaper(resolvedParams.slug);
 
   if (!paper) {
     notFound();
