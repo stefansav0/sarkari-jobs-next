@@ -6,37 +6,31 @@ import slugify from "slugify";
 const JobSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, index: true, trim: true },
+    slug: { type: String, lowercase: true, unique: true, trim: true },
     department: { type: String, required: true, trim: true },
     eligibility: { type: String, required: true, trim: true },
     category: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
-    slug: { type: String, lowercase: true, unique: true, trim: true },
     
-    // Made optional since you are now using importantLinks.applyOnline
-    applyLink: {
-      type: String,
-      required: false, 
-      trim: true,
-      validate: {
-        validator: (v) => {
-          // If empty, pass validation. If filled, check URL format.
-          if (!v) return true; 
-          return /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/.test(v);
-        },
-        message: "Invalid URL format for apply link"
-      }
-    },
+    // SEO Fields Added
+    seoKeywords: { type: String, trim: true },
+    metaDescription: { type: String, trim: true },
     
-    lastDate: { type: Date, required: true },
+    // Changed to String to support free-text like "25th Jan 2024"
+    lastDate: { type: String, required: true, trim: true },
+    
     status: {
       type: String,
       enum: ["active", "closed", "pending", "expired"],
       default: "active",
       lowercase: true
     },
+    
+    // HTML Supported Text Fields
     ageLimit: { type: String, trim: true },
     applicationFee: { type: String, trim: true },
     vacancy: { type: String, trim: true },
+    
     importantDates: {
       applicationBegin: { type: String, trim: true },
       lastDateApply: { type: String, trim: true },
@@ -45,7 +39,6 @@ const JobSchema = new mongoose.Schema(
       admitCard: { type: String, trim: true }
     },
     
-    // Updated to support multiple links and uploaded file URLs
     importantLinks: {
       applyOnline: [
         {
@@ -65,27 +58,26 @@ const JobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Pre-save hook to handle slug generation
 JobSchema.pre("save", function (next) {
-  if (this.isModified("title")) {
-    this.slug = slugify(this.title, { lower: true, strict: true });
-  }
-
-  if (this.lastDate && new Date(this.lastDate) < new Date()) {
-    this.status = "expired";
+  // If slug is provided manually, slugify it to ensure URL safety. 
+  // Otherwise, fallback to generating it from the title.
+  if (this.isModified("title") || this.isModified("slug")) {
+    const baseSlugString = this.slug ? this.slug : this.title;
+    this.slug = slugify(baseSlugString, { lower: true, strict: true });
   }
 
   next();
 });
 
+// Pre-update hook to handle slug updates
 JobSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
 
-  if (update.title) {
-    update.slug = slugify(update.title, { lower: true, strict: true });
-  }
-
-  if (update.lastDate && new Date(update.lastDate) < new Date()) {
-    update.status = "expired";
+  // Handle manual slug update or title update
+  if (update.slug || update.title) {
+    const baseSlugString = update.slug ? update.slug : update.title;
+    update.slug = slugify(baseSlugString, { lower: true, strict: true });
   }
 
   next();

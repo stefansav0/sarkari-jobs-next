@@ -22,6 +22,22 @@ interface JobsApiResponse {
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 const MAX_RETRIES = 3;
 
+// ✅ NEW: Smart date formatter to handle both old GMT strings and new free-text
+function formatListDate(value?: string): string {
+  if (!value) return "—";
+  
+  const d = new Date(value);
+  // If parsing fails (meaning it's free-text like "25th Jan 2024"), return the raw text
+  if (isNaN(d.getTime())) return value; 
+  
+  // If it's a valid old date string, format it cleanly to "DD MMM YYYY" (e.g., "07 Aug 2026")
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [page, setPage] = useState<number>(1);
@@ -59,8 +75,8 @@ const Jobs = () => {
           return unique;
         });
 
-        setPage(data.currentPage);
-        setTotalPages(data.totalPages);
+        setPage(data.currentPage || 1);
+        setTotalPages(data.totalPages || 1);
 
         setLoading(false);
         return;
@@ -127,10 +143,11 @@ const Jobs = () => {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-full text-sm font-medium ${selectedCategory === cat
+            className={`px-4 py-2 rounded-full text-sm font-medium ${
+              selectedCategory === cat
                 ? "bg-indigo-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
+            }`}
           >
             {cat}
           </button>
@@ -175,10 +192,9 @@ const Jobs = () => {
                       {job.category || "—"}
                     </td>
 
-                    <td className="px-6 py-4">
-                      {job.lastDate
-                        ? new Date(job.lastDate).toLocaleDateString("en-IN")
-                        : "—"}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {/* ✅ FIX: Pass the mixed data to our smart formatter */}
+                      {formatListDate(job.lastDate)}
                     </td>
                   </tr>
                 );

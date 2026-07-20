@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import JobDetailClient from "./JobDetailClient";
 
 /* -----------------------------
-   TYPES (Updated for arrays)
+   TYPES (Updated for arrays & SEO)
 ------------------------------ */
 interface LinkItem {
   label?: string;
@@ -20,6 +20,11 @@ export interface JobType {
   applicationFee?: string;
   vacancy?: string;
   description?: string;
+  
+  // ✅ Added SEO Fields
+  seoKeywords?: string;
+  metaDescription?: string;
+
   importantDates?: {
     applicationBegin?: string;
     lastDateApply?: string;
@@ -28,7 +33,6 @@ export interface JobType {
     admitCard?: string;
   };
   importantLinks?: {
-    // Updated to support arrays of objects
     applyOnline?: LinkItem[];
     downloadNotification?: LinkItem[];
     officialWebsite?: string;
@@ -52,7 +56,9 @@ async function getJob(slug: string): Promise<JobType | null> {
   if (!res.ok) return null;
 
   const data = await res.json();
-  return data.job || null;
+  
+  // ✅ FIX: The API now returns the job object directly at the root
+  return data || null;
 }
 
 /* -----------------------------
@@ -75,20 +81,25 @@ export async function generateMetadata(
   }
 
   const canonical = `https://finderight.com/jobs/${job.slug}`;
+  
+  // ✅ Prioritize custom metaDescription, fallback to description slice
+  const displayDescription = 
+    job.metaDescription || 
+    job.description?.slice(0, 150) || 
+    `Latest recruitment details for ${job.title}.`;
 
-  return {
+  const metadata: Metadata = {
     title: `${job.title} | Finderight`,
-    description:
-      job.description?.slice(0, 150) ||
-      `Latest recruitment details for ${job.title}.`,
+    description: displayDescription,
+    
+    // ✅ Add custom SEO Keywords if they exist
+    ...(job.seoKeywords && { keywords: job.seoKeywords }),
 
     alternates: { canonical },
 
     openGraph: {
       title: job.title,
-      description:
-        job.description?.slice(0, 150) ||
-        `Government recruitment details for ${job.title}.`,
+      description: displayDescription,
       url: canonical,
       type: "article",
       siteName: "Finderight",
@@ -97,9 +108,11 @@ export async function generateMetadata(
     twitter: {
       card: "summary_large_image",
       title: job.title,
-      description: job.description?.slice(0, 150) || "",
+      description: displayDescription,
     },
   };
+
+  return metadata;
 }
 
 /* -----------------------------

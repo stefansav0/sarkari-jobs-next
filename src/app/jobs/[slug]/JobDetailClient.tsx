@@ -18,7 +18,7 @@ interface LinkItem {
 }
 
 interface ImportantLinks {
-    // 🔥 FIX: Accept both arrays (new data) and strings (old legacy data)
+    // Accept both arrays (new data) and strings (old legacy data)
     applyOnline?: LinkItem[] | string;
     downloadNotification?: LinkItem[] | string;
     officialWebsite?: string;
@@ -34,6 +34,8 @@ export interface JobType {
     applicationFee?: string;    
     vacancy?: string;           
     description?: string;
+    seoKeywords?: string;       // ✅ Added
+    metaDescription?: string;   // ✅ Added
     importantDates?: ImportantDates;
     importantLinks?: ImportantLinks;
     createdAt?: string;
@@ -44,7 +46,7 @@ interface JobDetailClientProps {
     job: JobType | null;
 }
 
-/* -------- HTML DECODE -------- */
+/* -------- HELPERS -------- */
 function decodeHtml(html?: string): string {
     if (!html) return "";
     return html
@@ -53,11 +55,18 @@ function decodeHtml(html?: string): string {
         .replace(/\\u002F/g, "/");
 }
 
+// ✅ New: Strip HTML for safe Meta tags and Structured Data
+function stripHtml(html?: string): string {
+    if (!html) return "";
+    const decoded = decodeHtml(html);
+    return decoded.replace(/<[^>]*>?/gm, '');
+}
+
 /* -------- DATE FORMATTERS -------- */
 function formatDateTime(value?: string): string {
     if (!value) return "—";
     const d = new Date(value);
-    if (isNaN(d.getTime())) return value;
+    if (isNaN(d.getTime())) return value; // Fallback to raw string if free-text
     return d.toLocaleString("en-IN", {
         day: "2-digit",
         month: "long",
@@ -70,12 +79,20 @@ function formatDateTime(value?: string): string {
 function formatDateOnly(value?: string): string {
     if (!value) return "—";
     const d = new Date(value);
-    if (isNaN(d.getTime())) return value;
+    if (isNaN(d.getTime())) return value; // Fallback to raw string if free-text
     return d.toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
     });
+}
+
+// ✅ New: Safely parse to YYYY-MM-DD for Google Structured Data
+function parseToISO(value?: string): string | undefined {
+    if (!value) return undefined;
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return undefined; // Omit if it's unparseable free-text
+    return d.toISOString().split("T")[0];
 }
 
 export default function JobDetailClient({ job }: JobDetailClientProps) {
@@ -90,13 +107,17 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
     const canonicalUrl = `https://finderight.com/jobs/${job.slug}`;
     const lastUpdated = job.updatedAt || job.createdAt;
 
+    // Process description safely for SEO
+    const plainDescription = stripHtml(job.description);
+    const metaDesc = job.metaDescription || plainDescription.slice(0, 160) || `Details for ${job.title}.`;
+
     const structuredData = {
         "@context": "https://schema.org",
         "@type": "JobPosting",
         title: job.title,
-        description: job.description,
-        datePosted: job.importantDates?.applicationBegin || job.createdAt,
-        validThrough: job.lastDate || undefined,
+        description: plainDescription,
+        datePosted: parseToISO(job.importantDates?.applicationBegin || job.createdAt),
+        validThrough: parseToISO(job.lastDate), // Safely handles free-text
         hiringOrganization: {
             "@type": "Organization",
             name: job.department || "Finderight",
@@ -113,7 +134,8 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
         <div className="container mx-auto p-4 md:p-8 max-w-5xl bg-white shadow-xl rounded-xl my-10">
             <Head>
                 <title>{job.title} | Finderight</title>
-                <meta name="description" content={job.description?.slice(0, 160) || `Details for ${job.title}.`} />
+                <meta name="description" content={metaDesc} />
+                {job.seoKeywords && <meta name="keywords" content={job.seoKeywords} />}
                 <link rel="canonical" href={canonicalUrl} />
                 <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
             </Head>
@@ -135,7 +157,11 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                         </tr>
                         <tr>
                             <td className="font-bold text-red-600 p-3">Short Info:</td>
-                            <td className="p-3 leading-relaxed">{job.description || "See details below."}</td>
+                            {/* ✅ FIX: Render description as HTML since admin panel now supports rich text */}
+                            <td 
+                                className="p-3 leading-relaxed prose prose-sm max-w-none" 
+                                dangerouslySetInnerHTML={{ __html: job.description ? decodeHtml(job.description) : "See details below." }}
+                            />
                         </tr>
                     </tbody>
                 </table>
@@ -198,7 +224,7 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                 <h2 className="text-xl md:text-2xl font-bold text-center text-pink-700 py-3 border-b">Important Links</h2>
                 <table className="w-full text-sm md:text-base">
                     <tbody>
-                        {/* 🔥 FIX: Handle Multiple Apply Online Links Safely (Array vs String check) */}
+                        {/* Apply Online Links */}
                         {job.importantLinks?.applyOnline && (
                             Array.isArray(job.importantLinks.applyOnline) ? (
                                 job.importantLinks.applyOnline.map((link, index) => (
@@ -223,7 +249,7 @@ export default function JobDetailClient({ job }: JobDetailClientProps) {
                             )
                         )}
 
-                        {/* 🔥 FIX: Handle Multiple Notification Downloads Safely (Array vs String check) */}
+                        {/* Notification Downloads */}
                         {job.importantLinks?.downloadNotification && (
                             Array.isArray(job.importantLinks.downloadNotification) ? (
                                 job.importantLinks.downloadNotification.map((link, index) => (

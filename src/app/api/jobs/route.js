@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import Job from "@/lib/models/Job";
 import { sendToAllUsers } from "@/lib/sendEmail";
 import slugify from "slugify";
-import { put } from "@vercel/blob"; // ✅ Added Vercel Blob import
+import { put } from "@vercel/blob";
 
 // GET /api/jobs
 export async function GET() {
@@ -28,7 +28,7 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    // 1. Parse FormData instead of JSON
+    // 1. Parse FormData
     const formData = await req.formData();
     const title = formData.get("title");
 
@@ -39,7 +39,13 @@ export async function POST(req) {
       );
     }
 
-    // 2. Extract standard text fields
+    // 2. Extract standard text fields (Updated with new SEO & Text fields)
+    const rawSlug = formData.get("slug") || "";
+    // If a custom slug is provided, slugify it for URL safety, else fallback to title
+    const slug = rawSlug 
+      ? slugify(rawSlug, { lower: true, strict: true }) 
+      : slugify(title, { lower: true, strict: true });
+
     const department = formData.get("department") || "";
     const category = formData.get("category") || "";
     const description = formData.get("description") || "";
@@ -47,8 +53,10 @@ export async function POST(req) {
     const ageLimit = formData.get("ageLimit") || "";
     const applicationFee = formData.get("applicationFee") || "";
     const vacancy = formData.get("vacancy") || "";
-    const lastDate = formData.get("lastDate") || "";
-    const applyLink = formData.get("applyLink") || ""; // Legacy field support
+    const lastDate = formData.get("lastDate") || ""; // Now treated as free-text string
+    
+    const seoKeywords = formData.get("seoKeywords") || "";
+    const metaDescription = formData.get("metaDescription") || "";
 
     // 3. Parse JSON strings back into objects/arrays
     const importantDates = JSON.parse(formData.get("importantDates") || "{}");
@@ -92,8 +100,6 @@ export async function POST(req) {
     }
 
     // 5. Construct the final data object for MongoDB
-    const slug = slugify(title, { lower: true, strict: true });
-    
     const jobData = {
       title,
       slug,
@@ -105,7 +111,8 @@ export async function POST(req) {
       applicationFee,
       vacancy,
       lastDate,
-      applyLink,
+      seoKeywords,
+      metaDescription,
       importantDates,
       importantLinks: {
         applyOnline,
@@ -119,6 +126,7 @@ export async function POST(req) {
     await job.save();
 
     // 7. Send email
+    // NOTE: lastDate formatting changed to direct output since it's now a free-text string
     await sendToAllUsers({
       subject: `New Job Posted!`,
       html: `
@@ -129,7 +137,7 @@ export async function POST(req) {
           <ul>
             <li><strong>📌 Title:</strong> ${job.title}</li>
             <li><strong>🏢 Department:</strong> ${job.department}</li>
-            <li><strong>⏰ Last Date:</strong> ${new Date(job.lastDate).toISOString().split("T")[0]}</li>
+            <li><strong>⏰ Last Date:</strong> ${job.lastDate}</li>
           </ul>
           <a href="${process.env.FRONTEND_URL}/jobs/${job.slug}">
             👉 View Full Job Details
