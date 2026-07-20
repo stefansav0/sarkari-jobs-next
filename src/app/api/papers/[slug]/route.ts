@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import QuestionPaper from "@/lib/models/QuestionPaper";
 
@@ -15,10 +15,13 @@ export async function OPTIONS() {
 }
 
 // GET a single paper by slug
-export async function GET(request: Request, { params }: { params: { slug: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const resolvedParams = await params;
+    const slug = resolvedParams.slug;
+
     await connectDB();
-    const paper = await QuestionPaper.findOne({ slug: params.slug });
+    const paper = await QuestionPaper.findOne({ slug: slug });
     
     if (!paper) {
       return NextResponse.json({ error: "Not found" }, { status: 404, headers: corsHeaders });
@@ -32,13 +35,16 @@ export async function GET(request: Request, { params }: { params: { slug: string
 }
 
 // UPDATE a paper by slug
-export async function PUT(request: Request, { params }: { params: { slug: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const resolvedParams = await params;
+    const slug = resolvedParams.slug;
+
     await connectDB();
     const body = await request.json();
     
     const updatedPaper = await QuestionPaper.findOneAndUpdate(
-      { slug: params.slug }, 
+      { slug: slug }, 
       body, 
       { 
         new: true,           // Returns the updated document instead of the old one
@@ -64,11 +70,14 @@ export async function PUT(request: Request, { params }: { params: { slug: string
 }
 
 // DELETE a paper by slug
-export async function DELETE(request: Request, { params }: { params: { slug: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const resolvedParams = await params;
+    const slug = resolvedParams.slug;
+
     await connectDB();
     
-    const deletedPaper = await QuestionPaper.findOneAndDelete({ slug: params.slug });
+    const deletedPaper = await QuestionPaper.findOneAndDelete({ slug: slug });
     
     if (!deletedPaper) {
       return NextResponse.json({ error: "Not found" }, { status: 404, headers: corsHeaders });
