@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import QuestionPaper from "@/lib/models/QuestionPaper";
 
@@ -28,18 +28,18 @@ export async function GET() {
 }
 
 // POST: Create a new paper
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
     const body = await request.json();
     
-    // Extract the new fields from the request body
+    // Extract the new fields from the request body (replaced directUrl with links)
     const { 
       title, 
       slug, 
       category, 
-      directUrl, 
+      links, 
       coverImageUrl, 
       focusKeywords, 
       metaDescription, 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       title,
       slug,
       category,
-      directUrl,
+      links,
       coverImageUrl,
       focusKeywords,
       metaDescription,

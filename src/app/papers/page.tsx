@@ -1,92 +1,160 @@
 import Link from "next/link";
+import { Metadata } from "next";
 import { connectDB } from "@/lib/db";
 import QuestionPaper from "@/lib/models/QuestionPaper";
 
-// Add this line to force Next.js to fetch fresh data on every request
+// Force Next.js to fetch fresh data on every request
 export const dynamic = 'force-dynamic';
 
-export default async function PapersListPage() {
+// 1. TypeScript interfaces
+interface IQuestionPaper {
+  _id: object;
+  title: string;
+  slug: string;
+  category: string;
+  links: { label: string; url: string }[];
+}
+
+interface PageProps {
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+  }>;
+}
+
+// 2. Dynamic SEO Generation based on current filters
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const resolvedParams = await searchParams;
+  const category = resolvedParams.category;
+  
+  // Dynamically update the page title if a category is selected (Great for SEO!)
+  const title = category && category !== "All" 
+    ? `${category} Question Papers & Study Materials` 
+    : "Resource Library | Download Question Papers & Study Materials";
+
+  return {
+    title,
+    description: "Browse and download our complete collection of SEO optimized question papers, study materials, and PDF documents.",
+  };
+}
+
+export default async function PapersListPage({ searchParams }: PageProps) {
   await connectDB();
   
-  // .lean() is crucial here to pass data from Server to Client safely
-  const papers = await QuestionPaper.find({}).sort({ createdAt: -1 }).lean();
+  // 3. Await search params (Next.js 15 breaking change)
+  const resolvedParams = await searchParams;
+  const searchQuery = resolvedParams.q || "";
+  const activeCategory = resolvedParams.category || "All";
+
+  // 4. Build the MongoDB Query dynamically
+  const dbQuery: any = {};
+  if (searchQuery) {
+    dbQuery.title = { $regex: searchQuery, $options: "i" };
+  }
+  if (activeCategory !== "All") {
+    dbQuery.category = activeCategory;
+  }
+
+  // 5. Fetch Papers & Distinct Categories
+  const papers = (await QuestionPaper.find(dbQuery)
+    .sort({ createdAt: -1 })
+    .lean()) as unknown as IQuestionPaper[];
+
+  // Fetch unique categories to dynamically generate the SEO filter tabs
+  const distinctCategories = await QuestionPaper.distinct("category");
+  const categories = ["All", ...distinctCategories.filter(Boolean)];
 
   return (
-    <main className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+    <main className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
       
-      {/* Page Header */}
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
-          Resource Library
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Browse and download our complete collection of question papers, study materials, and documents.
-        </p>
+      {/* Simple Blue Page Header (Matching your screenshot style) */}
+      <h1 className="text-2xl md:text-4xl font-bold text-center text-blue-700 mb-8 tracking-wide">
+        Resource Library Downloads
+      </h1>
+
+      {/* Search Bar (Uses native HTML form for SSR & SEO) */}
+      <form className="mb-6 relative flex items-center w-full shadow-sm rounded-xl border border-gray-300 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+        {/* Preserve category filter if one is already selected */}
+        {activeCategory !== "All" && <input type="hidden" name="category" value={activeCategory} />}
+        
+        <div className="pl-4 text-gray-400">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        
+        <input 
+          type="text" 
+          name="q" 
+          defaultValue={searchQuery} 
+          placeholder="Search documents..." 
+          className="w-full py-3 pl-3 pr-4 outline-none text-gray-700 bg-transparent placeholder-gray-400"
+        />
+        
+        <button type="submit" className="px-5 py-3 bg-blue-50 text-blue-700 font-semibold border-l border-gray-300 hover:bg-blue-100 transition-colors">
+          Search
+        </button>
+      </form>
+
+      {/* Category Filter Tabs */}
+      <div className="flex flex-wrap gap-2 mb-10 border-b border-gray-200 pb-6">
+        {categories.map((cat) => {
+          const isActive = cat === activeCategory;
+          
+          // Build URL parameters cleanly
+          const params = new URLSearchParams();
+          if (searchQuery) params.set("q", searchQuery);
+          if (cat !== "All") params.set("category", cat);
+          
+          return (
+            <Link 
+              key={cat} 
+              href={`?${params.toString()}`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                isActive 
+                  ? "bg-blue-600 text-white shadow-sm" 
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+              }`}
+            >
+              {cat}
+            </Link>
+          );
+        })}
       </div>
       
-      {/* Documents Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {papers.map((paper: any) => (
-          <div 
+      {/* Raw Row List Layout (As requested from screenshot) */}
+      <div className="flex flex-col gap-4">
+        {papers.map((paper) => (
+          <Link 
+            href={`/papers/${paper.slug}`}
             key={paper._id.toString()} 
-            className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group"
+            className="block w-full bg-white rounded-xl border border-gray-400 p-5 sm:p-6 hover:bg-gray-50 transition-colors"
           >
+            {/* Title in bold blue */}
+            <h2 className="text-lg sm:text-xl font-bold text-blue-700 mb-3 leading-snug">
+              {paper.title}
+            </h2>
             
-            {/* Thumbnail / Cover Image Area */}
-            <div className="relative h-48 w-full bg-gray-50 overflow-hidden border-b border-gray-100">
-              {paper.coverImageUrl ? (
-                // Using standard img tag so we don't need to configure next.config.js for external domains
-                <img 
-                  src={paper.coverImageUrl} 
-                  alt={paper.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              ) : (
-                // Fallback gradient if the user didn't provide a cover image URL
-                <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-                  <svg className="w-12 h-12 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-              )}
-              
-              {/* Floating Category Badge */}
-              <div className="absolute top-4 left-4">
-                <span className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wide border border-blue-100">
-                  {paper.category}
-                </span>
-              </div>
+            {/* Link Text with External Icon */}
+            <div className="flex items-center gap-1.5 text-blue-600 font-medium text-sm sm:text-base">
+              Download / View Details
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
             </div>
-
-            {/* Content Area */}
-            <div className="p-6 flex flex-col flex-grow">
-              <h2 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                {paper.title}
-              </h2>
-              
-              <p className="text-gray-600 text-sm mb-6 line-clamp-3">
-                {paper.metaDescription || "Click to view the full details and download this document."}
-              </p>
-              
-              {/* Spacer to push button to bottom */}
-              <div className="mt-auto">
-                <Link 
-                  href={`/papers/${paper.slug}`}
-                  className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-gray-50 text-blue-600 font-semibold rounded-xl border border-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-200"
-                >
-                  View Details &rarr;
-                </Link>
-              </div>
-            </div>
-            
-          </div>
+          </Link>
         ))}
       </div>
       
       {/* Empty State Handle */}
       {papers.length === 0 && (
-        <div className="text-center py-20">
-          <p className="text-gray-500 text-lg">No documents found. Check back later!</p>
+        <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+          <p className="text-gray-500 text-lg mb-4">
+            We couldn't find anything matching "{searchQuery}" {activeCategory !== "All" && `in ${activeCategory}`}.
+          </p>
+          <Link href="/papers" className="inline-block text-blue-600 font-semibold hover:underline">
+            Clear all filters
+          </Link>
         </div>
       )}
     </main>

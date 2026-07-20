@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       body, 
       { 
         new: true,           // Returns the updated document instead of the old one
-        runValidators: true  // Ensures required fields (like category, directUrl) are not bypassed during edit
+        runValidators: true  // Ensures required fields (like category, links) are not bypassed during edit
       } 
     );
     

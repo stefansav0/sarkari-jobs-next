@@ -6,7 +6,14 @@ const questionPaperSchema = new Schema(
     title: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     category: { type: String, required: true },
-    directUrl: { type: String, required: true }, // Replaces pdfUrl
+    
+    // Multiple Download / Resource Links (Replaces directUrl)
+    links: [
+      {
+        label: { type: String, required: true },
+        url: { type: String, required: true }
+      }
+    ],
 
     // Media
     coverImageUrl: { type: String, default: "" },
