@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import StudyNews from "@/lib/models/StudyNews";
 import slugify from "slugify";
 import { sendToAllUsers } from "@/lib/sendEmail";
+import { waitUntil } from "@vercel/functions"; // ✅ Added to prevent Vercel timeouts
 
 // Connect to DB globally
 connectDB();
@@ -105,15 +106,16 @@ export async function POST(req: Request) {
 
     await news.save();
 
-    /* --- Send Email Notification --- */
-    try {
-      // 1. Aggressively clean the HTML out of the description
-      const cleanDescription = stripHtml(description);
-      
-      // 2. Safely create a snippet that doesn't break words
-      const snippet = createSnippet(cleanDescription, 200);
+    /* --- Send Email Notification in Background --- */
+    // 1. Aggressively clean the HTML out of the description
+    const cleanDescription = stripHtml(description);
+    
+    // 2. Safely create a snippet that doesn't break words
+    const snippet = createSnippet(cleanDescription, 200);
 
-      await sendToAllUsers({
+    // ✅ Wrap in waitUntil and remove await so the frontend gets an instant 201 response
+    waitUntil(
+      sendToAllUsers({
         subject: "📢 New Study Update Just In!",
         html: `
           <!DOCTYPE html>
@@ -157,14 +159,16 @@ export async function POST(req: Request) {
           </body>
           </html>
         `,
-      });
-    } catch (emailErr: unknown) {
-      if (emailErr instanceof Error) {
-        console.error("❌ Email sending failed:", emailErr.message);
-      } else {
-        console.error("❌ Email sending failed:", emailErr);
-      }
-    }
+      })
+      .then(() => console.log("✅ Study News background emails sent successfully"))
+      .catch((emailErr: unknown) => {
+        if (emailErr instanceof Error) {
+          console.error("❌ Email sending failed:", emailErr.message);
+        } else {
+          console.error("❌ Email sending failed:", emailErr);
+        }
+      })
+    );
 
     return NextResponse.json(
       { message: "✅ Study News created successfully", news },

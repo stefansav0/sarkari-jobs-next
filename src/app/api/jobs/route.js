@@ -4,6 +4,7 @@ import Job from "@/lib/models/Job";
 import { sendToAllUsers } from "@/lib/sendEmail";
 import slugify from "slugify";
 import { put } from "@vercel/blob";
+import { waitUntil } from "@vercel/functions"; // ✅ Added to prevent Vercel timeouts
 
 // GET /api/jobs
 export async function GET() {
@@ -125,27 +126,31 @@ export async function POST(req) {
     const job = new Job(jobData);
     await job.save();
 
-    // 7. Send email
-    // NOTE: lastDate formatting changed to direct output since it's now a free-text string
-    await sendToAllUsers({
-      subject: `New Job Posted!`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-          <h2>📰 Finderight Jobs Notification</h2>
-          <p>Hi {{name}},</p>
-          <p>A new job has just been posted on <strong>Finderight</strong>:</p>
-          <ul>
-            <li><strong>📌 Title:</strong> ${job.title}</li>
-            <li><strong>🏢 Department:</strong> ${job.department}</li>
-            <li><strong>⏰ Last Date:</strong> ${job.lastDate}</li>
-          </ul>
-          <a href="${process.env.FRONTEND_URL}/jobs/${job.slug}">
-            👉 View Full Job Details
-          </a>
-          <p>Best,<br />Finderight Team</p>
-        </div>
-      `,
-    });
+    // 7. Send email in the background using waitUntil
+    // NOTE: We remove 'await' here so the API responds to the client immediately
+    waitUntil(
+      sendToAllUsers({
+        subject: `New Job Posted: ${job.title}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+            <h2>📰 Finderight Jobs Notification</h2>
+            <p>Hi {{name}},</p>
+            <p>A new job has just been posted on <strong>Finderight</strong>:</p>
+            <ul>
+              <li><strong>📌 Title:</strong> ${job.title}</li>
+              <li><strong>🏢 Department:</strong> ${job.department}</li>
+              <li><strong>⏰ Last Date:</strong> ${job.lastDate}</li>
+            </ul>
+            <a href="${process.env.FRONTEND_URL}/jobs/${job.slug}">
+              👉 View Full Job Details
+            </a>
+            <p>Best,<br />Finderight Team</p>
+          </div>
+        `,
+      })
+      .then(() => console.log("✅ Background job emails sent successfully"))
+      .catch((err) => console.error("❌ Background job email failed:", err))
+    );
 
     return NextResponse.json(
       { success: true, message: "Job created successfully", job },
