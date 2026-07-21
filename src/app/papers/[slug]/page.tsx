@@ -27,6 +27,22 @@ interface PageProps {
   }>;
 }
 
+// --- HELPERS FOR SAFE HTML RENDERING ---
+function decodeHtml(html?: string): string {
+  if (!html) return "";
+  return html
+    .replace(/\\u003C/g, "<")
+    .replace(/\\u003E/g, ">")
+    .replace(/\\u002F/g, "/");
+}
+
+function stripHtml(html?: string): string {
+  if (!html) return "";
+  const decoded = decodeHtml(html);
+  return decoded.replace(/<[^>]*>?/gm, '');
+}
+// ---------------------------------------
+
 // 3. Fetcher Function (Cached)
 const getPaper = cache(async (slug: string): Promise<IQuestionPaper | null> => {
   await connectDB();
@@ -48,15 +64,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const keywordsArray = paper.focusKeywords 
     ? paper.focusKeywords.split(",").map(k => k.trim())
-    : [paper.title, paper.category, "download pdf"];
+    : [paper.title, paper.category, "download pdf"].filter(Boolean);
+
+  const safeDescription = stripHtml(paper.metaDescription) || `Download ${paper.title} from our ${paper.category || 'library'} collection.`;
 
   return {
     title: `${paper.title} | Free PDF Download`,
-    description: paper.metaDescription || `Download ${paper.title} from our ${paper.category} collection.`,
+    description: safeDescription,
     keywords: keywordsArray,
     openGraph: {
       title: paper.title,
-      description: paper.metaDescription || `Download ${paper.title}`,
+      description: safeDescription,
       type: "article",
       images: paper.coverImageUrl ? [{ url: paper.coverImageUrl }] : [],
     },
@@ -99,19 +117,20 @@ export default async function SinglePaperPage({ params }: PageProps) {
                 alt={paper.title} 
                 className="w-full h-full object-cover" 
               />
-              {/* Subtle inner gradient for a premium editorial look */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
             </div>
           )}
 
           <div className="p-6 sm:p-10 md:p-14">
             
-            {/* Category Badge & Date (Optional simulated date for visual balance) */}
-            <div className="flex items-center gap-4 mb-6">
-              <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 text-xs font-extrabold rounded-md border border-blue-100 uppercase tracking-widest">
-                {paper.category}
-              </span>
-            </div>
+            {/* Category Badge */}
+            {paper.category && (
+              <div className="flex items-center gap-4 mb-6">
+                <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 text-xs font-extrabold rounded-md border border-blue-100 uppercase tracking-widest">
+                  {paper.category}
+                </span>
+              </div>
+            )}
 
             {/* Title */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 leading-[1.15] mb-6 tracking-tight text-balance">
@@ -121,7 +140,7 @@ export default async function SinglePaperPage({ params }: PageProps) {
             {/* Lead Description */}
             {paper.metaDescription && (
               <p className="text-xl text-gray-600 leading-relaxed mb-10 font-medium text-balance">
-                {paper.metaDescription}
+                {stripHtml(paper.metaDescription)}
               </p>
             )}
 
@@ -167,17 +186,25 @@ export default async function SinglePaperPage({ params }: PageProps) {
                 </h2>
                 
                 {/* 
-                  Enhanced Tailwind Typography (prose) 
-                  Makes injected HTML deeply readable and cleanly formatted 
+                  🔥 THE ULTIMATE FIX: Arbitrary Variants
+                  This forces Tailwind to style the raw HTML tags inside this div without needing plugins or globals.css
                 */}
                 <div 
-                  className="prose prose-lg prose-blue max-w-none 
-                             prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-gray-900
-                             prose-p:text-gray-600 prose-p:leading-relaxed
-                             prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
-                             prose-img:rounded-2xl prose-img:shadow-sm
-                             prose-li:text-gray-600"
-                  dangerouslySetInnerHTML={{ __html: paper.fullDetails }} 
+                  className="
+                    text-gray-700 leading-relaxed
+                    [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-gray-900 [&_h1]:mt-8 [&_h1]:mb-4
+                    [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:mt-8 [&_h2]:mb-4
+                    [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-gray-900 [&_h3]:mt-6 [&_h3]:mb-3
+                    [&_p]:mb-4
+                    [&_strong]:font-bold [&_strong]:text-gray-900
+                    [&_b]:font-bold [&_b]:text-gray-900
+                    [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
+                    [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:mb-4
+                    [&_li]:mb-1
+                    [&_a]:text-blue-600 [&_a]:hover:underline
+                    [&_hr]:my-8 [&_hr]:border-gray-200
+                  "
+                  dangerouslySetInnerHTML={{ __html: decodeHtml(paper.fullDetails) }} 
                 />
               </div>
             )}

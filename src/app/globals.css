@@ -24,3 +24,61 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Add this to the bottom of app/globals.css */
+
+.rich-text-content h1,
+.rich-text-content h2,
+.rich-text-content h3 {
+  font-weight: 700;
+  color: #111827; /* text-gray-900 */
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.rich-text-content h2 {
+  font-size: 1.5rem; /* text-2xl */
+}
+
+.rich-text-content h3 {
+  font-size: 1.25rem; /* text-xl */
+}
+
+.rich-text-content p {
+  margin-bottom: 1rem;
+  line-height: 1.75;
+  color: #374151; /* text-gray-700 */
+}
+
+/* Forces bold tags to actually render as bold */
+.rich-text-content strong,
+.rich-text-content b {
+  font-weight: 700 !important;
+  color: #111827;
+}
+
+.rich-text-content ul {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.rich-text-content li {
+  margin-bottom: 0.25rem;
+}
+
+.rich-text-content a {
+  color: #2563eb; /* text-blue-600 */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.rich-text-content a:hover {
+  text-decoration: underline;
+}
+
+.rich-text-content hr {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  border-color: #e5e7eb;
+}
