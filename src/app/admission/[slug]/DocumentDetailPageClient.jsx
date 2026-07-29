@@ -9,7 +9,7 @@ import React from "react";
 function decodeHtml(html) {
     if (!html || html === "<p></p>") return "";
     
-    let decodedString = html
+    let decodedString = String(html)
         .replace(/\\u003C/g, "<")
         .replace(/\\u003E/g, ">")
         .replace(/\\u002F/g, "/")
@@ -18,6 +18,11 @@ function decodeHtml(html) {
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&amp;/g, "&");
+
+    // FIX FOR OLD DATA: If there are no block HTML tags, convert plain newlines to <br />
+    if (!/<p|br|div|ul|ol|li|table|h[1-6]/i.test(decodedString)) {
+        decodedString = decodedString.replace(/\n/g, "<br />");
+    }
 
     return DOMPurify.sanitize(decodedString);
 }
@@ -81,18 +86,18 @@ export default function DocumentDetailPageClient({ admission }) {
                 </div>
             </div>
 
-            {/* INFO & DATES GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 items-start">
+            {/* INFO & DATES SECTIONS (Now Stacked Vertically for Full Width) */}
+            <div className="flex flex-col gap-8 mb-10">
                 
                 {/* DETAILS CARD */}
-                <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition w-full">
                     <h2 className="text-lg font-bold text-white bg-gray-800 py-3 px-5">Admission Details</h2>
-                    <div className="p-0">
+                    <div className="p-0 overflow-x-auto">
                         <table className="w-full text-sm md:text-base text-left">
                             <tbody>
                                 <tr className="border-b border-gray-100">
-                                    <td className="w-1/3 font-semibold text-gray-600 p-3 bg-gray-50 align-top">Course:</td>
-                                    <td className="p-3 text-gray-900 font-medium align-top prose prose-sm prose-teal max-w-none leading-snug">
+                                    <td className="w-1/4 sm:w-1/5 font-semibold text-gray-600 p-4 bg-gray-50 align-top">Course:</td>
+                                    <td className="p-4 text-gray-900 align-top leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2">
                                         {decodeHtml(document.course) ? 
                                             <div dangerouslySetInnerHTML={{ __html: decodeHtml(document.course) }} /> 
                                             : "—"
@@ -100,8 +105,8 @@ export default function DocumentDetailPageClient({ admission }) {
                                     </td>
                                 </tr>
                                 <tr className="border-b border-gray-100">
-                                    <td className="font-semibold text-gray-600 p-3 bg-gray-50 align-top">Eligibility:</td>
-                                    <td className="p-3 text-gray-900 font-medium align-top prose prose-sm prose-teal max-w-none leading-snug">
+                                    <td className="w-1/4 sm:w-1/5 font-semibold text-gray-600 p-4 bg-gray-50 align-top">Eligibility:</td>
+                                    <td className="p-4 text-gray-900 align-top leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold">
                                         {decodeHtml(document.eligibility) ? 
                                             <div dangerouslySetInnerHTML={{ __html: decodeHtml(document.eligibility) }} /> 
                                             : "—"
@@ -109,8 +114,8 @@ export default function DocumentDetailPageClient({ admission }) {
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td className="font-semibold text-gray-600 p-3 bg-gray-50 align-top">Age Limit:</td>
-                                    <td className="p-3 text-gray-900 font-medium align-top prose prose-sm prose-teal max-w-none leading-snug">
+                                    <td className="w-1/4 sm:w-1/5 font-semibold text-gray-600 p-4 bg-gray-50 align-top">Age Limit:</td>
+                                    <td className="p-4 text-gray-900 align-top leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-bold">
                                         {decodeHtml(document.ageLimit) ? 
                                             <div dangerouslySetInnerHTML={{ __html: decodeHtml(document.ageLimit) }} /> 
                                             : "—"
@@ -122,23 +127,23 @@ export default function DocumentDetailPageClient({ admission }) {
                     </div>
                 </section>
 
-                {/* TIMELINE DATES CARD (Using fallback displayDates) */}
+                {/* TIMELINE DATES CARD */}
                 {displayDates && displayDates.length > 0 && (
-                    <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                    <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition w-full">
                         <h2 className="text-lg font-bold text-white bg-teal-600 py-3 px-5 flex items-center">
                             <CalendarDays className="w-5 h-5 mr-2" /> Important Dates
                         </h2>
-                        <div className="p-0">
+                        <div className="p-0 overflow-x-auto">
                             <table className="w-full text-sm md:text-base text-left">
                                 <tbody>
                                     {displayDates.map((item, index) => {
                                         const isHighlight = item.label.toLowerCase().includes('last') || item.label.toLowerCase().includes('deadline');
                                         return (
                                             <tr className="border-b border-gray-100" key={`date-${index}`}>
-                                                <td className={`w-1/2 font-semibold p-3 align-top ${isHighlight ? 'text-red-700 bg-red-50/30' : 'text-gray-600 bg-teal-50/50'}`}>
+                                                <td className={`w-1/3 sm:w-1/4 font-semibold p-4 align-top ${isHighlight ? 'text-red-700 bg-red-50/30' : 'text-gray-600 bg-teal-50/50'}`}>
                                                     {item.label}:
                                                 </td>
-                                                <td className={`p-3 align-top ${isHighlight ? 'text-red-600 font-bold bg-red-50/10' : 'text-gray-900 font-medium'}`}>
+                                                <td className={`p-4 align-top ${isHighlight ? 'text-red-600 font-bold bg-red-50/10' : 'text-gray-900 font-medium'}`}>
                                                     {renderDate(item.date)}
                                                 </td>
                                             </tr>
@@ -154,7 +159,7 @@ export default function DocumentDetailPageClient({ admission }) {
             {/* APPLICATION FEE */}
             {document.applicationFee && document.applicationFee !== "<p></p>" && (
                 <section className="mb-10 bg-gradient-to-br from-teal-50 to-emerald-50 border-l-4 border-teal-500 p-6 rounded-r-lg shadow-sm">
-                    <h2 className="text-xl font-bold text-teal-900 mb-3 flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-teal-900 mb-4 flex items-center gap-2">
                         <span>💳</span> Application Fee Structure
                     </h2>
                     <div 
@@ -182,7 +187,7 @@ export default function DocumentDetailPageClient({ admission }) {
                 <h2 className="text-xl md:text-2xl font-extrabold text-center text-white bg-gradient-to-r from-teal-600 to-emerald-600 py-4 uppercase tracking-wide">
                     Important Links
                 </h2>
-                <div className="bg-white">
+                <div className="bg-white overflow-x-auto">
                     <table className="w-full text-sm md:text-base border-collapse">
                         <tbody>
                             
@@ -197,12 +202,12 @@ export default function DocumentDetailPageClient({ admission }) {
                                                 href={link.url.startsWith("http") ? link.url : `https://${link.url}`} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer" 
-                                                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm md:text-base font-bold rounded-full text-white bg-teal-600 hover:bg-teal-700 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto"
+                                                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm md:text-base font-bold rounded-full text-white bg-teal-600 hover:bg-teal-700 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto min-w-[140px]"
                                             >
                                                 Click Here
                                             </a>
                                         ) : (
-                                            <span className="inline-flex items-center justify-center px-6 py-2.5 text-sm md:text-base font-medium rounded-full text-gray-500 bg-gray-200 cursor-not-allowed">
+                                            <span className="inline-flex items-center justify-center px-6 py-2.5 text-sm md:text-base font-medium rounded-full text-gray-500 bg-gray-200 cursor-not-allowed min-w-[140px]">
                                                 Link Unavailable
                                             </span>
                                         )}
@@ -221,12 +226,12 @@ export default function DocumentDetailPageClient({ admission }) {
                                                 href={link.url.startsWith("http") ? link.url : `https://${link.url}`} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer" 
-                                                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm md:text-base font-bold rounded-full text-white bg-slate-700 hover:bg-slate-800 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto"
+                                                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm md:text-base font-bold rounded-full text-white bg-slate-700 hover:bg-slate-800 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto min-w-[140px]"
                                             >
                                                 Click Here
                                             </a>
                                         ) : (
-                                            <span className="inline-flex items-center justify-center px-6 py-2.5 text-sm md:text-base font-medium rounded-full text-gray-500 bg-gray-200 cursor-not-allowed">
+                                            <span className="inline-flex items-center justify-center px-6 py-2.5 text-sm md:text-base font-medium rounded-full text-gray-500 bg-gray-200 cursor-not-allowed min-w-[140px]">
                                                 Link Unavailable
                                             </span>
                                         )}
@@ -244,7 +249,7 @@ export default function DocumentDetailPageClient({ admission }) {
                                             href={document.importantLinks.officialWebsite.startsWith("http") ? document.importantLinks.officialWebsite : `https://${document.importantLinks.officialWebsite}`} 
                                             target="_blank" 
                                             rel="noopener noreferrer" 
-                                            className="inline-flex items-center justify-center px-6 py-2.5 border border-teal-600 text-sm md:text-base font-bold rounded-full text-teal-600 bg-transparent hover:bg-teal-50 hover:shadow-sm transform hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto"
+                                            className="inline-flex items-center justify-center px-6 py-2.5 border border-teal-600 text-sm md:text-base font-bold rounded-full text-teal-600 bg-transparent hover:bg-teal-50 hover:shadow-sm transform hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-auto min-w-[140px]"
                                         >
                                             Click Here
                                         </a>
