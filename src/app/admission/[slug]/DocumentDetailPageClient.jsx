@@ -8,7 +8,19 @@ import React from "react";
 // Safe HTML Decoder for the text fields
 function decodeHtml(html) {
     if (!html) return "";
-    return DOMPurify.sanitize(html.replace(/\\u003C/g, "<").replace(/\\u003E/g, ">").replace(/\\u002F/g, "/"));
+    
+    // Decode unicode escapes and common HTML entities before sanitizing
+    let decodedString = html
+        .replace(/\\u003C/g, "<")
+        .replace(/\\u003E/g, ">")
+        .replace(/\\u002F/g, "/")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&");
+
+    return DOMPurify.sanitize(decodedString);
 }
 
 /* ------------------  Component  ------------------ */
