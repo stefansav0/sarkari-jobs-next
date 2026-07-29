@@ -4,21 +4,29 @@ import slugify from 'slugify';
 const AdmissionSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   slug: { type: String, unique: true, lowercase: true, trim: true },
+  
+  // ✅ NEW: SEO Fields
+  seoKeywords: { type: String, trim: true },
+  metaDescription: { type: String, trim: true },
+  
   conductedBy: { type: String, required: true, trim: true },
+  
+  // All these hold TipTap HTML now
   eligibility: { type: String, trim: true },
   ageLimit: { type: String, trim: true },
   course: { type: String, trim: true },
-  applicationFee: { type: String, trim: true }, // Holds TipTap HTML
-  fullCourseDetails: { type: String, trim: true }, // Holds TipTap HTML
+  applicationFee: { type: String, trim: true }, 
+  fullCourseDetails: { type: String, trim: true }, 
 
-  // 🟢 All dates as strings (allows for formats like "TBA" or "15 May 2026")
-  examDate: { type: String, trim: true },
-  publishDate: { type: String, trim: true },
-  applicationBegin: { type: String, trim: true },
-  lastDateApply: { type: String, trim: true },
-  admissionDate: { type: String, trim: true },
+  // ✅ NEW: Dynamic Key Dates array replaces static dates
+  keyDates: [
+    {
+      label: { type: String, trim: true },
+      date: { type: String, trim: true }
+    }
+  ],
 
-  // ✅ UPDATED: Matches the new frontend form structure for multiple SEO links
+  // Matches the new frontend form structure for multiple SEO links
   importantLinks: {
     applyOnline: [
       {
@@ -42,15 +50,25 @@ const AdmissionSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+
 // Auto-generate slug & check expiration before saving (New Documents)
 AdmissionSchema.pre('save', function (next) {
-  if (this.isModified('title')) {
+  // 1. Slug Handling
+  if (this.slug) {
+    // If a manual slug was provided, just sanitize it
+    this.slug = slugify(this.slug, { lower: true, strict: true });
+  } else if (this.title) {
+    // If no slug was provided, generate it from the title
     this.slug = slugify(this.title, { lower: true, strict: true });
   }
 
-  // Basic expiration check if a valid date is provided
-  if (this.lastDateApply && !isNaN(Date.parse(this.lastDateApply))) {
-    const lastDate = new Date(this.lastDateApply);
+  // 2. Expiration logic (Finds a date labeled "Last Date...")
+  const deadlineObj = this.keyDates?.find(d => 
+    d.label && d.label.toLowerCase().includes('last date')
+  );
+
+  if (deadlineObj && deadlineObj.date && !isNaN(Date.parse(deadlineObj.date))) {
+    const lastDate = new Date(deadlineObj.date);
     if (lastDate < new Date()) {
       this.status = 'expired';
     } else {
@@ -61,21 +79,32 @@ AdmissionSchema.pre('save', function (next) {
   next();
 });
 
+
 // Update slug & check expiration on edit (Edited Documents)
 AdmissionSchema.pre('findOneAndUpdate', function (next) {
   const update = this.getUpdate();
   
-  if (update.title) {
+  // 1. Slug Handling
+  if (update.slug) {
+    update.slug = slugify(update.slug, { lower: true, strict: true });
+  } else if (update.title && !update.slug) {
+    // Only auto-generate if title is updated and NO manual slug is provided
     update.slug = slugify(update.title, { lower: true, strict: true });
   }
 
-  // Recalculate status if the deadline date is edited
-  if (update.lastDateApply && !isNaN(Date.parse(update.lastDateApply))) {
-    const lastDate = new Date(update.lastDateApply);
-    if (lastDate < new Date()) {
-      update.status = 'expired';
-    } else {
-      update.status = 'active';
+  // 2. Expiration logic (Finds a date labeled "Last Date...")
+  if (update.keyDates) {
+    const deadlineObj = update.keyDates.find(d => 
+      d.label && d.label.toLowerCase().includes('last date')
+    );
+
+    if (deadlineObj && deadlineObj.date && !isNaN(Date.parse(deadlineObj.date))) {
+      const lastDate = new Date(deadlineObj.date);
+      if (lastDate < new Date()) {
+        update.status = 'expired';
+      } else {
+        update.status = 'active';
+      }
     }
   }
 

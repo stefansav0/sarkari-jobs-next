@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Admission from "@/lib/models/Admission";
 
+// 🔴 Disable aggressive caching in Next.js App Router for the admin panel
+export const dynamic = "force-dynamic";
+
 /* -----------------------------------------
    🟦 GET — Fetch Admission by Slug
 ------------------------------------------*/
@@ -29,7 +32,7 @@ export async function GET(req, context) {
       );
     }
 
-    // ✅ Wrapped in { admission } to match what your new frontend edit page expects
+    // ✅ Wrapped in { admission } to match what your frontend edit page expects
     return NextResponse.json({ success: true, admission }, { status: 200 });
 
   } catch (error) {
@@ -58,11 +61,27 @@ export async function PUT(req, context) {
       return NextResponse.json({ message: "❌ Slug is required" }, { status: 400 });
     }
 
+    // 🛡️ Data Sanitization for new arrays before passing to Mongoose
+    if (body.keyDates && !Array.isArray(body.keyDates)) {
+      body.keyDates = [];
+    }
+    
+    if (body.importantLinks) {
+      if (body.importantLinks.applyOnline && !Array.isArray(body.importantLinks.applyOnline)) {
+        body.importantLinks.applyOnline = [];
+      }
+      if (body.importantLinks.downloadNotice && !Array.isArray(body.importantLinks.downloadNotice)) {
+        body.importantLinks.downloadNotice = [];
+      }
+    }
+
     // findOneAndUpdate updates the document in MongoDB
     // { new: true } tells it to return the updated data instead of the old data
+    // Note: Our Mongoose `pre('findOneAndUpdate')` hook will automatically handle 
+    // slug generation and expiration status calculation.
     const updatedAdmission = await Admission.findOneAndUpdate(
-      { slug },
-      body,
+      { slug }, // Find by the OLD slug in the URL
+      body,     // Apply the new body data
       { new: true, runValidators: true }
     );
 
@@ -76,6 +95,15 @@ export async function PUT(req, context) {
     );
   } catch (error) {
     console.error("🔥 Error updating admission:", error);
+
+    // Handle duplicate slug error if user tries to manually change to a slug that already exists
+    if (error.code === 11000 && error.keyPattern?.slug) {
+      return NextResponse.json(
+        { message: "❌ This slug is already in use by another admission." },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { message: "❌ Error updating admission", error: error.message },
       { status: 500 }

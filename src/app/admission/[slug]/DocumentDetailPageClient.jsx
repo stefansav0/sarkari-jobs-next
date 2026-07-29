@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import DOMPurify from "isomorphic-dompurify";
-import { CalendarDays, ExternalLink } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import React from "react";
 
 // Safe HTML Decoder for the text fields
 function decodeHtml(html) {
-    if (!html) return "";
+    if (!html || html === "<p></p>") return "";
     
-    // Decode unicode escapes and common HTML entities before sanitizing
     let decodedString = html
         .replace(/\\u003C/g, "<")
         .replace(/\\u003E/g, ">")
@@ -23,13 +22,11 @@ function decodeHtml(html) {
     return DOMPurify.sanitize(decodedString);
 }
 
-/* ------------------  Component  ------------------ */
 export default function DocumentDetailPageClient({ admission }) {
     const document = admission;
 
     if (!document) return null;
 
-    // Helper to safely format dates (since dates might be plain text like "TBA")
     const renderDate = (dateStr) => {
         if (!dateStr) return "—";
         const d = new Date(dateStr);
@@ -48,6 +45,17 @@ export default function DocumentDetailPageClient({ admission }) {
         : typeof document.importantLinks?.downloadNotice === 'string' && document.importantLinks.downloadNotice
             ? [{ label: "Download Notice", url: document.importantLinks.downloadNotice }]
             : [];
+
+    // --- Backward Compatibility for Dates (FIX FOR OLD DATA) ---
+    let displayDates = document.keyDates || [];
+    
+    // If keyDates is empty, it's likely an old post. Let's pull from the old static fields.
+    if (displayDates.length === 0) {
+        if (document.applicationBegin) displayDates.push({ label: "Application Begin", date: document.applicationBegin });
+        if (document.lastDateApply) displayDates.push({ label: "Last Date to Apply", date: document.lastDateApply });
+        if (document.examDate) displayDates.push({ label: "Exam Date", date: document.examDate });
+        if (document.admissionDate) displayDates.push({ label: "Admission Date", date: document.admissionDate });
+    }
 
     return (
         <main className="container mx-auto p-4 sm:p-6 lg:p-10 max-w-4xl bg-white shadow-2xl rounded-2xl my-8 md:my-12 border border-gray-100">
@@ -74,7 +82,7 @@ export default function DocumentDetailPageClient({ admission }) {
             </div>
 
             {/* INFO & DATES GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 items-start">
                 
                 {/* DETAILS CARD */}
                 <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
@@ -83,53 +91,67 @@ export default function DocumentDetailPageClient({ admission }) {
                         <table className="w-full text-sm md:text-base text-left">
                             <tbody>
                                 <tr className="border-b border-gray-100">
-                                    <td className="w-1/3 font-semibold text-gray-600 p-3 bg-gray-50">Course:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{document.course || "—"}</td>
+                                    <td className="w-1/3 font-semibold text-gray-600 p-3 bg-gray-50 align-top">Course:</td>
+                                    <td className="p-3 text-gray-900 font-medium align-top prose prose-sm prose-teal max-w-none leading-snug">
+                                        {decodeHtml(document.course) ? 
+                                            <div dangerouslySetInnerHTML={{ __html: decodeHtml(document.course) }} /> 
+                                            : "—"
+                                        }
+                                    </td>
                                 </tr>
                                 <tr className="border-b border-gray-100">
-                                    <td className="font-semibold text-gray-600 p-3 bg-gray-50">Eligibility:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{document.eligibility || "—"}</td>
+                                    <td className="font-semibold text-gray-600 p-3 bg-gray-50 align-top">Eligibility:</td>
+                                    <td className="p-3 text-gray-900 font-medium align-top prose prose-sm prose-teal max-w-none leading-snug">
+                                        {decodeHtml(document.eligibility) ? 
+                                            <div dangerouslySetInnerHTML={{ __html: decodeHtml(document.eligibility) }} /> 
+                                            : "—"
+                                        }
+                                    </td>
                                 </tr>
                                 <tr>
-                                    <td className="font-semibold text-gray-600 p-3 bg-gray-50">Age Limit:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{document.ageLimit || "—"}</td>
+                                    <td className="font-semibold text-gray-600 p-3 bg-gray-50 align-top">Age Limit:</td>
+                                    <td className="p-3 text-gray-900 font-medium align-top prose prose-sm prose-teal max-w-none leading-snug">
+                                        {decodeHtml(document.ageLimit) ? 
+                                            <div dangerouslySetInnerHTML={{ __html: decodeHtml(document.ageLimit) }} /> 
+                                            : "—"
+                                        }
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </section>
 
-                {/* TIMELINE DATES CARD */}
-                <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
-                    <h2 className="text-lg font-bold text-white bg-teal-600 py-3 px-5 flex items-center">
-                        <CalendarDays className="w-5 h-5 mr-2" /> Important Dates
-                    </h2>
-                    <div className="p-0">
-                        <table className="w-full text-sm md:text-base text-left">
-                            <tbody>
-                                <tr className="border-b border-gray-100">
-                                    <td className="w-1/2 font-semibold text-gray-600 p-3 bg-teal-50/50">Application Begin:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{renderDate(document.applicationBegin)}</td>
-                                </tr>
-                                <tr className="border-b border-gray-100">
-                                    <td className="font-semibold text-gray-600 p-3 bg-teal-50/50">Last Date to Apply:</td>
-                                    <td className="p-3 text-red-600 font-bold">{renderDate(document.lastDateApply)}</td>
-                                </tr>
-                                <tr className="border-b border-gray-100">
-                                    <td className="font-semibold text-gray-600 p-3 bg-teal-50/50">Exam Date:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{renderDate(document.examDate)}</td>
-                                </tr>
-                                <tr>
-                                    <td className="font-semibold text-gray-600 p-3 bg-teal-50/50">Admission Date:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{renderDate(document.admissionDate)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                {/* TIMELINE DATES CARD (Using fallback displayDates) */}
+                {displayDates && displayDates.length > 0 && (
+                    <section className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                        <h2 className="text-lg font-bold text-white bg-teal-600 py-3 px-5 flex items-center">
+                            <CalendarDays className="w-5 h-5 mr-2" /> Important Dates
+                        </h2>
+                        <div className="p-0">
+                            <table className="w-full text-sm md:text-base text-left">
+                                <tbody>
+                                    {displayDates.map((item, index) => {
+                                        const isHighlight = item.label.toLowerCase().includes('last') || item.label.toLowerCase().includes('deadline');
+                                        return (
+                                            <tr className="border-b border-gray-100" key={`date-${index}`}>
+                                                <td className={`w-1/2 font-semibold p-3 align-top ${isHighlight ? 'text-red-700 bg-red-50/30' : 'text-gray-600 bg-teal-50/50'}`}>
+                                                    {item.label}:
+                                                </td>
+                                                <td className={`p-3 align-top ${isHighlight ? 'text-red-600 font-bold bg-red-50/10' : 'text-gray-900 font-medium'}`}>
+                                                    {renderDate(item.date)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                )}
             </div>
 
-            {/* APPLICATION FEE (TIPTAP HTML RENDERED) */}
+            {/* APPLICATION FEE */}
             {document.applicationFee && document.applicationFee !== "<p></p>" && (
                 <section className="mb-10 bg-gradient-to-br from-teal-50 to-emerald-50 border-l-4 border-teal-500 p-6 rounded-r-lg shadow-sm">
                     <h2 className="text-xl font-bold text-teal-900 mb-3 flex items-center gap-2">
@@ -142,7 +164,7 @@ export default function DocumentDetailPageClient({ admission }) {
                 </section>
             )}
 
-            {/* FULL COURSE DETAILS (TIPTAP HTML RENDERED) */}
+            {/* FULL COURSE DETAILS */}
             {document.fullCourseDetails && document.fullCourseDetails !== "<p></p>" && (
                 <section className="mb-12">
                     <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -155,7 +177,7 @@ export default function DocumentDetailPageClient({ admission }) {
                 </section>
             )}
 
-            {/* IMPORTANT LINKS (PREMIUM UI) */}
+            {/* IMPORTANT LINKS */}
             <section className="mb-10 rounded-2xl overflow-hidden shadow-lg border border-teal-100">
                 <h2 className="text-xl md:text-2xl font-extrabold text-center text-white bg-gradient-to-r from-teal-600 to-emerald-600 py-4 uppercase tracking-wide">
                     Important Links
@@ -164,7 +186,6 @@ export default function DocumentDetailPageClient({ admission }) {
                     <table className="w-full text-sm md:text-base border-collapse">
                         <tbody>
                             
-                            {/* Map Apply Online Links */}
                             {applyLinks.map((link, index) => (
                                 <tr className="border-b border-gray-100 hover:bg-gray-50 transition duration-150" key={`apply-${index}`}>
                                     <td className="p-5 font-bold text-teal-900 w-1/2 md:w-2/3 align-middle">
@@ -189,7 +210,6 @@ export default function DocumentDetailPageClient({ admission }) {
                                 </tr>
                             ))}
 
-                            {/* Map Download Notice Links */}
                             {noticeLinks.map((link, index) => (
                                 <tr className="border-b border-gray-100 hover:bg-gray-50 transition duration-150" key={`notice-${index}`}>
                                     <td className="p-5 font-bold text-teal-900 w-1/2 md:w-2/3 align-middle">
@@ -214,7 +234,6 @@ export default function DocumentDetailPageClient({ admission }) {
                                 </tr>
                             ))}
 
-                            {/* Official Website */}
                             {document.importantLinks?.officialWebsite && (
                                 <tr className="hover:bg-gray-50 transition duration-150">
                                     <td className="p-5 font-bold text-teal-900 w-1/2 md:w-2/3 align-middle">

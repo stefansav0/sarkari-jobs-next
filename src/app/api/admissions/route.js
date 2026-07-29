@@ -59,17 +59,16 @@ export async function POST(req) {
 
     const {
       title = "",
+      slug = "",                // ✅ NEW: Manual Slug
+      seoKeywords = "",         // ✅ NEW: SEO Keywords
+      metaDescription = "",     // ✅ NEW: Meta Description
       conductedBy = "",
       eligibility = "",
       ageLimit = "",
       course = "",
       applicationFee = "",
       fullCourseDetails = "",
-      examDate = "",
-      publishDate = "",
-      applicationBegin = "",
-      lastDateApply = "",
-      admissionDate = "",
+      keyDates = [],            // ✅ NEW: Dynamic Key Dates array (replaces static dates)
       importantLinks = {},
     } = body;
 
@@ -87,24 +86,26 @@ export async function POST(req) {
       );
     }
 
-    // === Generate slug ===
-    const slug = slugify(title, { lower: true, strict: true });
+    // === Generate or format slug ===
+    // If user provided a manual slug, sanitize it. Otherwise, auto-generate from title.
+    const finalSlug = slug.trim()
+      ? slugify(slug, { lower: true, strict: true })
+      : slugify(title, { lower: true, strict: true });
 
     // === Create admission ===
     const admission = new Admission({
       title: title.trim(),
-      slug,
+      slug: finalSlug,
+      seoKeywords: seoKeywords.trim(),
+      metaDescription: metaDescription.trim(),
       conductedBy: conductedBy.trim(),
       eligibility,
       ageLimit,
       course,
       applicationFee,
       fullCourseDetails,
-      examDate,
-      publishDate,
-      applicationBegin,
-      lastDateApply,
-      admissionDate,
+      // ✅ Handle the new dynamic dates safely
+      keyDates: Array.isArray(keyDates) ? keyDates : [],
       // ✅ Handle the new multiple-link arrays safely
       importantLinks: {
         applyOnline: Array.isArray(importantLinks.applyOnline) ? importantLinks.applyOnline : [],
@@ -125,10 +126,10 @@ export async function POST(req) {
   } catch (error) {
     console.error("🔥 POST Admission Error:", error);
 
-    // Duplicate slug
+    // Duplicate slug error handling
     if (error.code === 11000 && error.keyPattern?.slug) {
       return NextResponse.json(
-        { message: "❌ Slug already exists. Try a different title." },
+        { message: "❌ Slug already exists. Try a different title or manual slug." },
         { status: 409 }
       );
     }
