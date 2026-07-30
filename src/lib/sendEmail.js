@@ -1,13 +1,22 @@
 import nodemailer from "nodemailer";
 import User from "@/lib/models/User";
 
-// ✅ Gmail Transporter (uses App Password)
+// ✅ Gmail Transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+});
+
+// ✅ Verify SMTP connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP Verify Error:", error);
+  } else {
+    console.log("✅ SMTP Server is ready");
+  }
 });
 
 // ✅ Reusable HTML email wrapper
@@ -33,8 +42,14 @@ const otpHtmlTemplate = (name = "User", otp) => `
   <p>If you did not request this, please ignore this email.</p>
 `;
 
-// ✅ Generic email sender
-export const sendEmail = async (to, subject, text = "", html = "", attachments = []) => {
+// ✅ Generic Email Sender
+export const sendEmail = async (
+  to,
+  subject,
+  text = "",
+  html = "",
+  attachments = []
+) => {
   const mailOptions = {
     from: `"Finderight" <${process.env.EMAIL_USER}>`,
     to,
@@ -44,11 +59,28 @@ export const sendEmail = async (to, subject, text = "", html = "", attachments =
     attachments,
   };
 
+  // 🔍 Debug logs
+  console.log("====================================");
+  console.log("EMAIL_USER:", process.env.EMAIL_USER);
+  console.log("EMAIL_PASS exists:", !!process.env.EMAIL_PASS);
+  console.log("EMAIL_PASS length:", process.env.EMAIL_PASS?.length);
+  console.log("Sending email to:", to);
+  console.log("====================================");
+
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`📧 Email sent to ${to}`);
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("✅ Email sent successfully!");
+    console.log("Message ID:", info.messageId);
+
+    return info;
   } catch (error) {
-    console.error(`❌ Failed to send email to ${to}:`, error?.response?.data || error.message);
+    console.error("❌ Email Send Error");
+    console.error("Message:", error.message);
+    console.error("Code:", error.code);
+    console.error("Response:", error.response);
+
+    throw error;
   }
 };
 
@@ -56,10 +88,10 @@ export const sendEmail = async (to, subject, text = "", html = "", attachments =
 export const sendOtpEmail = async (to, name, otp) => {
   const subject = "Verify Your Email";
   const html = otpHtmlTemplate(name, otp);
-  await sendEmail(to, subject, "", html);
+  return await sendEmail(to, subject, "", html);
 };
 
-// ✅ Broadcast email to all verified users
+// ✅ Broadcast email to verified users
 export const sendToAllUsers = async ({ subject, text = "", html = "" }) => {
   try {
     const users = await User.find({ isVerified: true }, "name email");
@@ -69,16 +101,17 @@ export const sendToAllUsers = async ({ subject, text = "", html = "" }) => {
       return;
     }
 
-    console.log(`📢 Sending to ${users.length} verified users...`);
+    console.log(`📢 Sending email to ${users.length} users...`);
 
-    const sendPromises = users.map(({ name, email }) => {
+    const promises = users.map(({ name, email }) => {
       const personalizedHtml = html.replace("{{name}}", name || "User");
       return sendEmail(email, subject, text, personalizedHtml);
     });
 
-    await Promise.allSettled(sendPromises);
+    await Promise.allSettled(promises);
+
     console.log("✅ Broadcast complete.");
   } catch (error) {
-    console.error("❌ Bulk email failed:", error.message);
+    console.error("❌ Bulk email failed:", error);
   }
 };
