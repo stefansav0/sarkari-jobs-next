@@ -55,10 +55,14 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    // ✅ Explicitly extract fields to ensure clean data matching the new frontend
+    // ✅ Explicitly extract all fields, including the newly added SEO, keyDates, and manual slug
     const {
       title,
+      slug, // <-- Manual slug from frontend
       conductedby,
+      seoKeywords,
+      metaDescription,
+      keyDates,
       examDate,
       applicationBegin,
       lastDateApply,
@@ -76,18 +80,24 @@ export async function POST(req) {
       );
     }
 
-    const slug = slugify(title, { lower: true, strict: true });
+    // ✅ Handle the Slug: Use manual slug if provided, else auto-generate from title
+    const finalSlug = slug 
+      ? slugify(slug, { lower: true, strict: true }) 
+      : slugify(title, { lower: true, strict: true });
 
-    // Mongoose handles the validation and saving
+    // ✅ Mongoose handles the validation and saving
     const newAdmitCard = await AdmitCard.create({
       title,
-      slug,
+      slug: finalSlug,
       conductedby,
-      examDate,
-      applicationBegin,
-      lastDateApply,
-      admitCard,
-      publishDate,
+      seoKeywords,
+      metaDescription,
+      keyDates,
+      examDate,           // Kept for backward compatibility
+      applicationBegin,   // Kept for backward compatibility
+      lastDateApply,      // Kept for backward compatibility
+      admitCard,          // Kept for backward compatibility
+      publishDate,        // Kept for backward compatibility
       description,
       howToDownload,
       importantLinks,
@@ -102,6 +112,14 @@ export async function POST(req) {
     );
   } catch (error) {
     console.error("❌ Error saving admit card:", error);
+
+    // Handle MongoDB Duplicate Key Error (e.g., duplicate slug)
+    if (error.code === 11000) {
+        return NextResponse.json(
+            { message: "❌ A post with this Title or Slug already exists. Please choose a different one.", error: error.message },
+            { status: 400 }
+        );
+    }
 
     return NextResponse.json(
       { message: "❌ Error saving admit card", error: error.message },

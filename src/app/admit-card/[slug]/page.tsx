@@ -12,15 +12,30 @@ interface ImportantLinks {
   officialWebsite?: string;
 }
 
+interface KeyDate {
+  label: string;
+  value: string;
+}
+
 interface AdmitCard {
   slug: string;
   title: string;
   conductedby?: string;
+  
+  // ✅ New SEO Fields
+  seoKeywords?: string;
+  metaDescription?: string;
+  
+  // ✅ New Dynamic Dates Array
+  keyDates?: KeyDate[];
+
+  // 🔄 Legacy Date Fields (kept for backward compatibility)
   applicationBegin?: string;
   lastDateApply?: string;
   admitCard?: string;
   examDate?: string;
   publishDate?: string;
+  
   description?: string;
   howToDownload?: string;
   importantLinks?: ImportantLinks;
@@ -52,8 +67,8 @@ async function getAdmitCard(slug: string): Promise<AdmitCard | null> {
 
     const data = await res.json();
     
-    // ✅ Extract the 'admitCard' object from the API response wrapper
-    return data.admitCard || data;
+    // ✅ Extract from the updated API response wrapper (`data.result`)
+    return data.result || data.admitCard || data;
   } catch (error) {
     console.error("Error fetching admit card:", error);
     return null;
@@ -82,12 +97,18 @@ export async function generateMetadata({
   const url = `https://finderight.com/admit-card/${admitCard.slug}`;
   const ogImage = "https://finderight.com/og-default.png";
   
-  // Strip HTML tags for clean meta descriptions
-  const cleanDescription = admitCard.description?.replace(/<[^>]*>?/gm, '') || `Download the latest admit card for ${admitCard.title}. Check exam date, release date & official links.`;
+  // ✅ Prioritize custom meta description, fallback to stripped description
+  const cleanDescription = admitCard.metaDescription || admitCard.description?.replace(/<[^>]*>?/gm, '') || `Download the latest admit card for ${admitCard.title}. Check exam date, release date & official links.`;
+  
+  // ✅ Split SEO Keywords string into an array if it exists
+  const keywordsArray = admitCard.seoKeywords 
+    ? admitCard.seoKeywords.split(',').map(k => k.trim()) 
+    : [];
 
   return {
     title: `${admitCard.title} | Download Admit Card`,
     description: cleanDescription.substring(0, 160),
+    keywords: keywordsArray.length > 0 ? keywordsArray : undefined,
     alternates: { canonical: url },
     openGraph: {
       title: admitCard.title,
@@ -114,14 +135,14 @@ export async function generateMetadata({
 --------------------------------------- */
 function AdmitCardJsonLd(item: AdmitCard) {
   const url = `https://finderight.com/admit-card/${item.slug}`;
-  const cleanDescription = item.description?.replace(/<[^>]*>?/gm, '') || `Download admit card for ${item.title}.`;
+  const cleanDescription = item.metaDescription || item.description?.replace(/<[^>]*>?/gm, '') || `Download admit card for ${item.title}.`;
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     headline: item.title,
-    description: cleanDescription,
+    description: cleanDescription.substring(0, 160),
     datePublished: item.publishDate || new Date().toISOString(),
     dateModified: item.publishDate || new Date().toISOString(),
     author: { "@type": "Organization", name: "Finderight" },
@@ -220,6 +241,18 @@ export default async function AdmitCardDetailPage({
     return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-IN", { day: '2-digit', month: 'long', year: 'numeric' });
   };
 
+  // ✅ Backward compatibility wrapper for Dynamic Key Dates
+  let datesToRender: KeyDate[] = [];
+  if (admitCard.keyDates && admitCard.keyDates.length > 0) {
+    datesToRender = admitCard.keyDates;
+  } else {
+    // If no dynamic keyDates exist, construct them from legacy fields
+    if (admitCard.applicationBegin) datesToRender.push({ label: "Application Begin", value: admitCard.applicationBegin });
+    if (admitCard.lastDateApply) datesToRender.push({ label: "Last Date to Apply", value: admitCard.lastDateApply });
+    if (admitCard.examDate) datesToRender.push({ label: "Exam Date", value: admitCard.examDate });
+    if (admitCard.admitCard) datesToRender.push({ label: "Admit Card Release", value: admitCard.admitCard });
+  }
+
   // Backward compatibility check for older data where downloadAdmitCard might still be a string
   const downloadLinks = Array.isArray(admitCard.importantLinks?.downloadAdmitCard) 
       ? admitCard.importantLinks?.downloadAdmitCard 
@@ -283,22 +316,27 @@ export default async function AdmitCardDetailPage({
           <div className="p-0">
             <table className="w-full text-sm md:text-base text-left">
               <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="w-1/2 font-semibold text-gray-600 p-3 bg-green-50/50">Application Begin:</td>
-                  <td className="p-3 text-gray-900 font-medium">{renderDate(admitCard.applicationBegin)}</td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="font-semibold text-gray-600 p-3 bg-green-50/50">Last Date to Apply:</td>
-                  <td className="p-3 text-gray-900 font-medium">{renderDate(admitCard.lastDateApply)}</td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="font-semibold text-gray-600 p-3 bg-green-50/50">Exam Date:</td>
-                  <td className="p-3 text-gray-900 font-medium">{renderDate(admitCard.examDate)}</td>
-                </tr>
-                <tr>
-                  <td className="font-semibold text-gray-600 p-3 bg-green-50/50">Admit Card Release:</td>
-                  <td className="p-3 text-red-600 font-bold">{renderDate(admitCard.admitCard)}</td>
-                </tr>
+                {datesToRender.length > 0 ? (
+                  datesToRender.map((dateItem, index) => {
+                    // Visually highlight row values related to Admit Cards or specific buzzwords
+                    const isAdmitCardRow = dateItem.label.toLowerCase().includes("admit card");
+                    
+                    return (
+                      <tr key={index} className="border-b border-gray-100 last:border-0">
+                        <td className="w-1/2 font-semibold text-gray-600 p-3 bg-green-50/50">
+                          {dateItem.label}:
+                        </td>
+                        <td className={`p-3 font-medium ${isAdmitCardRow ? 'text-red-600 font-bold' : 'text-gray-900'}`}>
+                          {renderDate(dateItem.value)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="p-4 text-center text-gray-500">Dates to be announced</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -313,7 +351,7 @@ export default async function AdmitCardDetailPage({
             <span className="text-blue-600">📖</span> How to Download Admit Card
           </h2>
           <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm prose prose-blue max-w-none text-gray-700 leading-relaxed" 
-               dangerouslySetInnerHTML={{ __html: decodeHtml(admitCard.howToDownload) }} 
+                dangerouslySetInnerHTML={{ __html: decodeHtml(admitCard.howToDownload) }} 
           />
         </section>
       )}

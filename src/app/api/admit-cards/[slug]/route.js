@@ -28,8 +28,8 @@ export async function GET(req, context) {
       );
     }
 
-    // Wrapped in { admitCard } to match what the frontend axios request expects
-    return NextResponse.json({ success: true, admitCard }, { status: 200 });
+    // ✅ Wrapped in { result: admitCard } to perfectly match `res.data.result` in your frontend
+    return NextResponse.json({ success: true, result: admitCard }, { status: 200 });
 
   } catch (error) {
     console.error("🔥 Error fetching admit card:", error);
@@ -50,8 +50,8 @@ export async function GET(req, context) {
 export async function PUT(req, context) {
   try {
     await connectDB();
-    const { slug } = await context.params;
-    const body = await req.json();
+    const { slug } = await context.params; // This is the OLD slug from the URL
+    const body = await req.json();         // This contains the NEW data (including potentially a new slug)
 
     if (!slug) {
       return NextResponse.json({ message: "❌ Slug is required" }, { status: 400 });
@@ -75,6 +75,15 @@ export async function PUT(req, context) {
     );
   } catch (error) {
     console.error("🔥 Error updating admit card:", error);
+
+    // ✅ Handle MongoDB Duplicate Key Error (If they manually enter a slug that already exists)
+    if (error.code === 11000) {
+        return NextResponse.json(
+            { message: "❌ A post with this Title or Slug already exists. Please choose a different one.", error: error.message },
+            { status: 400 }
+        );
+    }
+
     return NextResponse.json(
       { message: "❌ Error updating admit card", error: error.message },
       { status: 500 }
