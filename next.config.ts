@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 1. Image Optimization Configuration (Fixes the Unsplash Error)
+  // 1. Image Optimization Configuration (Fixes the Unsplash & ImgBB Errors)
   images: {
     remotePatterns: [
       {
@@ -10,11 +10,14 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**', 
       },
+      // ✅ Added i.ibb.co for your Study News cover images
+      {
+        protocol: 'https',
+        hostname: 'i.ibb.co',
+        port: '',
+        pathname: '/**', 
+      },
       // You can add more domains here in the future if needed!
-      // {
-      //   protocol: 'https',
-      //   hostname: 'another-image-domain.com',
-      // },
     ],
   },
 

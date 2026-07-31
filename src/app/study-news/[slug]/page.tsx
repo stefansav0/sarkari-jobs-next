@@ -441,7 +441,7 @@ export default async function StudyNewsDetail({
               </Box>
             )}
 
-            {/* Content */}
+            {/* Content Wrapper */}
             <Box
               sx={{
                 fontSize: {
@@ -450,6 +450,8 @@ export default async function StudyNewsDetail({
                 },
                 lineHeight: 1.9,
                 color: "#1e293b",
+                overflowWrap: "break-word",
+                wordBreak: "break-word",
 
                 "& p": {
                   mb: 3,
@@ -492,10 +494,12 @@ export default async function StudyNewsDetail({
                   mb: 1.2,
                 },
 
+                // Enhanced Link Styles to prevent overflow
                 "& a": {
                   color: "#2563eb",
                   fontWeight: 600,
                   textDecoration: "none",
+                  wordBreak: "break-all",
                 },
 
                 "& a:hover": {
@@ -511,44 +515,32 @@ export default async function StudyNewsDetail({
                   borderRadius: "0 12px 12px 0",
                   fontStyle: "italic",
                 },
+                
+                // Added table support styling
+                "& table": {
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  my: 4,
+                  overflowX: "auto",
+                  display: "block",
+                },
+                
+                "& th, & td": {
+                  border: "1px solid #cbd5e1",
+                  padding: "12px",
+                  textAlign: "left",
+                },
+                
+                "& th": {
+                  backgroundColor: "#f8fafc",
+                  fontWeight: 700,
+                },
               }}
               dangerouslySetInnerHTML={{
                 __html: cleanHtmlContent,
               }}
             />
-
-            {/* Keywords */}
-            {keywordList.length > 0 && (
-              <>
-                <Divider sx={{ my: 5 }} />
-
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                  mb={2}
-                >
-                  Tags
-                </Typography>
-
-                <Box
-                  display="flex"
-                  flexWrap="wrap"
-                  gap={1.5}
-                >
-                  {keywordList.map((keyword, index) => (
-                    <Chip
-                      key={index}
-                      label={keyword}
-                      sx={{
-                        bgcolor: "#eff6ff",
-                        color: "#2563eb",
-                        fontWeight: 600,
-                      }}
-                    />
-                  ))}
-                </Box>
-              </>
-            )}
+            {/* Tags section has been completely removed as requested */}
           </Paper>
 
           {/* Sidebar */}
