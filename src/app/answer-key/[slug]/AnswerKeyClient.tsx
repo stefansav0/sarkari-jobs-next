@@ -14,13 +14,23 @@ export interface AnswerKeyType {
     slug: string;
     title: string;
     conductedby?: string;
+    
+    // ✅ New Dynamic Dates Array
+    keyDates?: { label: string; value: string }[];
+    
+    // ✅ New SEO Fields
+    seoKeywords?: string;
+    metaDescription?: string;
+
+    // Old fields kept for backward compatibility with older database entries
     applicationBegin?: string;
     lastDateApply?: string;
     examDate?: string;
     admitcard?: string;
     answerKeyRelease?: string;
-    publishDate?: string;
     description?: string;
+    
+    publishDate?: string;
     howToCheck?: string; // Contains TipTap HTML
     importantLinks?: ImportantLinks;
 }
@@ -39,7 +49,6 @@ function decodeHtml(html?: string) {
 export default function AnswerKeyClient({ answerKey }: AnswerKeyClientProps) {
     if (!answerKey) return null;
 
-    // ✅ FIXED: Changed 'dateString' to 'dateStr' to match the parameter
     const renderDate = (dateStr?: string) => {
         if (!dateStr) return "—";
         const d = new Date(dateStr); 
@@ -50,7 +59,7 @@ export default function AnswerKeyClient({ answerKey }: AnswerKeyClientProps) {
     const downloadLinks = Array.isArray(answerKey.importantLinks?.downloadAnswerKey) 
         ? answerKey.importantLinks?.downloadAnswerKey 
         : typeof answerKey.importantLinks?.downloadAnswerKey === 'string' && answerKey.importantLinks?.downloadAnswerKey
-            ? [{ label: "Download Answer Key", url: answerKey.importantLinks.downloadAnswerKey }]
+            ? [{ label: "Download Answer Key", url: answerKey.importantLinks.downloadAnswerKey as string }]
             : [];
 
     return (
@@ -69,14 +78,6 @@ export default function AnswerKeyClient({ answerKey }: AnswerKeyClientProps) {
                     </div>
                 )}
             </div>
-
-            {/* DESCRIPTION SECTION */}
-            {answerKey.description && (
-                <div className="mb-10 bg-gradient-to-br from-fuchsia-50 to-purple-50 border-l-4 border-purple-500 p-5 rounded-r-lg shadow-sm">
-                    <h3 className="font-bold text-purple-900 mb-2 text-lg">📌 Brief Information</h3>
-                    <div className="text-gray-700 text-sm md:text-base leading-relaxed" dangerouslySetInnerHTML={{ __html: decodeHtml(answerKey.description) }} />
-                </div>
-            )}
 
             {/* INFO & DATES GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
@@ -108,18 +109,35 @@ export default function AnswerKeyClient({ answerKey }: AnswerKeyClientProps) {
                     <div className="p-0">
                         <table className="w-full text-sm md:text-base text-left">
                             <tbody>
-                                <tr className="border-b border-gray-100">
-                                    <td className="w-1/2 font-semibold text-gray-600 p-3 bg-purple-50/50">Application Begin:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{renderDate(answerKey.applicationBegin)}</td>
-                                </tr>
-                                <tr className="border-b border-gray-100">
-                                    <td className="font-semibold text-gray-600 p-3 bg-purple-50/50">Exam Date:</td>
-                                    <td className="p-3 text-gray-900 font-medium">{renderDate(answerKey.examDate)}</td>
-                                </tr>
-                                <tr>
-                                    <td className="font-semibold text-gray-600 p-3 bg-purple-50/50">Answer Key Release:</td>
-                                    <td className="p-3 text-green-600 font-bold">{renderDate(answerKey.answerKeyRelease)}</td>
-                                </tr>
+                                {/* ✅ Render Dynamic Dates if available */}
+                                {answerKey.keyDates && answerKey.keyDates.length > 0 ? (
+                                    answerKey.keyDates.map((dateItem, idx) => (
+                                        <tr key={idx} className="border-b border-gray-100 last:border-0">
+                                            <td className="w-1/2 font-semibold text-gray-600 p-3 bg-purple-50/50">
+                                                {dateItem.label}:
+                                            </td>
+                                            <td className="p-3 text-gray-900 font-medium">
+                                                {dateItem.value || "—"}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    /* Fallback for older documents */
+                                    <>
+                                        <tr className="border-b border-gray-100">
+                                            <td className="w-1/2 font-semibold text-gray-600 p-3 bg-purple-50/50">Application Begin:</td>
+                                            <td className="p-3 text-gray-900 font-medium">{renderDate(answerKey.applicationBegin)}</td>
+                                        </tr>
+                                        <tr className="border-b border-gray-100">
+                                            <td className="font-semibold text-gray-600 p-3 bg-purple-50/50">Exam Date:</td>
+                                            <td className="p-3 text-gray-900 font-medium">{renderDate(answerKey.examDate)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="font-semibold text-gray-600 p-3 bg-purple-50/50">Answer Key Release:</td>
+                                            <td className="p-3 text-green-600 font-bold">{renderDate(answerKey.answerKeyRelease)}</td>
+                                        </tr>
+                                    </>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -131,7 +149,7 @@ export default function AnswerKeyClient({ answerKey }: AnswerKeyClientProps) {
             {answerKey.howToCheck && (
                 <section className="mb-12">
                     <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="text-purple-600">📖</span> How to Check Answer Key
+                        <span className="text-purple-600">📖</span> How to Check / Details
                     </h2>
                     <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm prose prose-purple max-w-none text-gray-700 leading-relaxed" 
                          dangerouslySetInnerHTML={{ __html: decodeHtml(answerKey.howToCheck) }} 

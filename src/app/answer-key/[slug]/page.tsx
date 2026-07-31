@@ -47,27 +47,36 @@ export async function generateMetadata({
     }
 
     const canonicalUrl = `https://finderight.com/answer-key/${answerKey.slug}`;
-    const cleanDescription = answerKey.description?.replace(/<[^>]*>?/gm, '') || `Download official answer key and exam details for ${answerKey.title}.`;
+    
+    // ✅ Prioritize new metaDescription, fallback to stripped howToCheck HTML, finally generic text
+    const cleanDescription = answerKey.metaDescription || 
+        (answerKey.howToCheck ? answerKey.howToCheck.replace(/<[^>]*>?/gm, '').substring(0, 160) : `Download official answer key and exam details for ${answerKey.title}.`);
+
+    // ✅ Format SEO keywords for Next.js Metadata array
+    const keywordsArray = answerKey.seoKeywords 
+        ? answerKey.seoKeywords.split(',').map((k: string) => k.trim()) 
+        : undefined;
 
     return {
         title: `${answerKey.title} | Answer Key`,
-        description: cleanDescription.substring(0, 160),
+        description: cleanDescription,
+        keywords: keywordsArray,
         alternates: { canonical: canonicalUrl },
         openGraph: {
             title: answerKey.title,
-            description: cleanDescription.substring(0, 160),
+            description: cleanDescription,
             url: canonicalUrl,
             siteName: "Finderight",
             type: "article",
-            publishedTime: answerKey.publishDate || undefined,
-            modifiedTime: answerKey.publishDate || undefined,
+            publishedTime: answerKey.publishDate ? new Date(answerKey.publishDate).toISOString() : undefined,
+            modifiedTime: answerKey.publishDate ? new Date(answerKey.publishDate).toISOString() : undefined,
             locale: "en_US",
             images: [{ url: "https://finderight.com/og-default.png", width: 1200, height: 630 }],
         },
         twitter: {
             card: "summary_large_image",
             title: answerKey.title,
-            description: cleanDescription.substring(0, 160),
+            description: cleanDescription,
             images: ["https://finderight.com/og-default.png"],
         },
         robots: { index: true, follow: true },
@@ -79,7 +88,10 @@ export async function generateMetadata({
 --------------------------------------- */
 function AnswerKeyJsonLd(item: AnswerKeyType) {
     const url = `https://finderight.com/answer-key/${item.slug}`;
-    const cleanDescription = item.description?.replace(/<[^>]*>?/gm, '') || `Download answer key for ${item.title}.`;
+    
+    // ✅ Apply the same smart description fallback for JSON-LD schema
+    const cleanDescription = item.metaDescription || 
+        (item.howToCheck ? item.howToCheck.replace(/<[^>]*>?/gm, '').substring(0, 160) : `Download answer key for ${item.title}.`);
 
     const jsonLd = {
         "@context": "https://schema.org",

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import AnswerKey from "@/lib/models/AnswerKey";
-import slugify from "slugify";
 
 // 🔴 Disable aggressive caching in Next.js App Router
 export const dynamic = "force-dynamic";
@@ -55,15 +54,14 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    // ✅ Explicitly extract fields to ensure clean data matches the new frontend
+    // ✅ Explicitly extract fields to match the new frontend & schema structure
     const {
       title,
+      slug,
+      seoKeywords,
+      metaDescription,
       conductedby,
-      applicationBegin,
-      lastDateApply,
-      examDate,
-      admitcard,
-      answerKeyRelease,
+      keyDates,
       howToCheck,
       publishDate,
       importantLinks,
@@ -76,21 +74,17 @@ export async function POST(req) {
       );
     }
 
-    const slug = slugify(title, { lower: true, strict: true });
-
-    // Mongoose handles the validation and saving
+    // Mongoose handles the validation, slug sanitization, and saving via pre-save hooks
     const newAnswerKey = await AnswerKey.create({
       title,
-      slug,
+      slug: slug || undefined, // Pass undefined if empty so Mongoose auto-generates it
+      seoKeywords,
+      metaDescription,
       conductedby,
-      applicationBegin,
-      lastDateApply,
-      examDate,
-      admitcard,
-      answerKeyRelease,
-      howToCheck, // This will safely save the TipTap HTML string
-      publishDate: publishDate || undefined, // fallback to Date.now() if empty
+      keyDates,
+      howToCheck, // Safely saves the TipTap HTML string
       importantLinks,
+      publishDate: publishDate || undefined, // Fallback to Date.now() if empty
     });
 
     return NextResponse.json(
@@ -102,6 +96,14 @@ export async function POST(req) {
     );
   } catch (error) {
     console.error("❌ Error saving answer key:", error);
+
+    // ✅ Catch Duplicate Slug Errors nicely
+    if (error.code === 11000 && error.keyPattern?.slug) {
+      return NextResponse.json(
+        { message: "❌ A post with this slug already exists. Please choose a unique URL." },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json(
       { message: "❌ Error saving answer key", error: error.message },

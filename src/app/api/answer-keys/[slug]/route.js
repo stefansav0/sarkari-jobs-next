@@ -29,7 +29,7 @@ export async function GET(req, context) {
       );
     }
 
-    // ✅ Wrapped in { answerKey } to match what your new frontend expects
+    // ✅ Wrapped in { answerKey } to match what your frontend expects
     return NextResponse.json({ success: true, answerKey }, { status: 200 });
 
   } catch (error) {
@@ -51,18 +51,46 @@ export async function GET(req, context) {
 export async function PUT(req, context) {
   try {
     await connectDB();
-    const { slug } = await context.params;
+    
+    // Grab the current slug from the URL parameters
+    const { slug: currentSlug } = await context.params;
     const body = await req.json();
 
-    if (!slug) {
+    if (!currentSlug) {
       return NextResponse.json({ message: "❌ Slug is required" }, { status: 400 });
     }
+
+    // ✅ Explicitly extract fields to match the new schema
+    const {
+      title,
+      slug: newSlug,
+      seoKeywords,
+      metaDescription,
+      conductedby,
+      keyDates,
+      howToCheck,
+      publishDate,
+      importantLinks,
+    } = body;
+
+    // Construct the payload of what actually needs updating
+    const updateData = {
+      title,
+      slug: newSlug || currentSlug, // Use the new slug if provided, otherwise keep the old one
+      seoKeywords,
+      metaDescription,
+      conductedby,
+      keyDates,
+      howToCheck,
+      publishDate,
+      importantLinks,
+    };
 
     // findOneAndUpdate updates the document in MongoDB
     // { new: true } tells it to return the updated data instead of the old data
     const updatedAnswerKey = await AnswerKey.findOneAndUpdate(
-      { slug },
-      body,
+      { slug: currentSlug },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -76,6 +104,15 @@ export async function PUT(req, context) {
     );
   } catch (error) {
     console.error("🔥 Error updating answer key:", error);
+
+    // ✅ Catch Duplicate Slug Errors nicely during updates
+    if (error.code === 11000 && error.keyPattern?.slug) {
+      return NextResponse.json(
+        { message: "❌ A post with this slug already exists. Please choose a unique URL." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { message: "❌ Error updating answer key", error: error.message },
       { status: 500 }
